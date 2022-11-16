@@ -1,0 +1,54 @@
+---
+title: "Gene Expression Data"
+author: "Ana Martins"
+date: "2022-11-15"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+```
+
+
+**1. Read the data file gene_expressions.rds using read_rds(). What are the dimensions of the data? What is the sample size?**
+
+```{r}
+gene_expressions <- read_rds("data/gene_expressions.rds")
+```
+
+The sample has 237 observations with 54676 features.
+
+**2. As always, visualisation is a good idea. Create histograms of the first 6 variables. Describe what you notice.**
+
+```{r}
+gene_expressions %>% 
+  ggplot() +
+  geom_histogram(aes(x = `1007_s_at`), fill = NA, color = "red", show.legend = "1007_s_at") +
+  geom_label(aes(x = 10.5, y = 80, label = "1007_s_at"), color = "red") +
+  geom_histogram(aes(x = `1053_at`), fill = NA, color = "orange") +
+  geom_label(aes(x = 7.5, y = 70, label = "1053_at"), color = "orange") +
+  geom_histogram(aes(`117_at`), fill = NA, color = "yellow") +
+  geom_label(aes(x = 6, y = 50, label = "117_at"), color = "yellow") +
+  geom_histogram(aes(`121_at`), fill = NA, color = "green") +
+  geom_label(aes(x = 6.5, y = 80, label = "121_at"), color = "green") +
+  geom_histogram(aes(`1255_g_at`), fill = NA, color = "blue") +
+  geom_label(aes(x = 3, y = 130, label = "1255_g_at"), color = "blue") +
+  geom_histogram(aes(`1294_at`), fill = NA, color = "purple") +
+  geom_label(aes(x = 8.5, y = 60, label = "1294_at"), color = "purple") +
+  theme_minimal()
+```
+
+They all have a peak at different heights.
+
+**3. We now only have the gene expression data, but the labels are in the file phenotypes.rds. Load that file, select() the relevant columns for classification into normal and tumor tissue, and join() it with the gene expression data, based on the tissue identifier in the sample column. Give the resulting dataset a good name!**
+
+```{r}
+phenotypes <- read_rds("data/phenotypes.rds") %>% 
+  select(sample, disease)
+
+data <- left_join(gene_expressions, phenotypes)
+```
+
+**4. Does this dataset suffer from class imbalance?**
+
