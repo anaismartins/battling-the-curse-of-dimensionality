@@ -44,11 +44,43 @@ They all have a peak at different heights.
 **3. We now only have the gene expression data, but the labels are in the file phenotypes.rds. Load that file, select() the relevant columns for classification into normal and tumor tissue, and join() it with the gene expression data, based on the tissue identifier in the sample column. Give the resulting dataset a good name!**
 
 ```{r}
-phenotypes <- read_rds("data/phenotypes.rds") %>% 
+phenotypes <- read_rds("data/phenotypes.rds") 
+
+phenotypes <-
+  phenotypes %>% 
   select(sample, disease)
 
 data <- left_join(gene_expressions, phenotypes)
 ```
 
 **4. Does this dataset suffer from class imbalance?**
+
+```{r}
+data <-
+  data %>% 
+  mutate(disease = as.factor(disease))
+summary(data["disease"])
+```
+
+No, the the classes are pretty evenly distributed.
+
+**5. Split the data into a training (80%) and a test set (20%). We will use the training set for model development in the next section.**
+
+```{r}
+split <- c(rep(1, length.out = 237*0.8 + 1), rep(0, length.out = 237*0.2))
+
+data <-
+  data %>% 
+  mutate(split = sample(split))
+
+train <-
+  data %>% 
+  filter(split == 1) %>% 
+  select(-split)
+
+test <-
+  data %>% 
+  filter(split == 0) %>% 
+  select(-split)
+```
 
