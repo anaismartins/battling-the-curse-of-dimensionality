@@ -1,0 +1,85 @@
+---
+title: "Partial Least Squares"
+author: "Ana Martins"
+date: "2022-11-16"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+**1. Download the corn data and store it in your assignment folder.**
+
+```{r}
+corn <- read_rds("data/corn.rds")
+```
+
+**2. Pick a property (Moisture, Oil, Starch, or Protein) to predict.**
+
+```{r}
+corn %>% 
+  ggplot() +
+  geom_histogram(aes(x = Moisture), fill = NA, color = "red") +
+  geom_label(aes(x = 13, y = 40), label = "Moisture", color = "red") +
+  geom_histogram(aes(x = Oil), fill = NA, color = "orange") +
+  geom_label(aes(x = 13, y = 35), label = "Oil", color = "orange") +
+  geom_histogram(aes(x = Protein), fill = NA, color = "yellow") +
+  geom_label(aes(x = 13, y = 30), label = "Protein", color = "yellow") +
+  theme_minimal()
+```
+
+Protein it is.
+
+**3. Split your data into a training (80%) and test (20%) set.**
+
+```{r}
+split <- c(rep(1, length.out = 80*0.8), rep(0, length.out = 80*0.2))
+
+corn <-
+  corn %>% 
+  mutate(split = sample(split)) %>% 
+  select(-Moisture, -Oil, -Starch)
+
+corn_train <-
+  corn %>% 
+  filter(split == 1) %>% 
+  select(-split)
+
+corn_test <-
+  corn %>% 
+  filter(split == 0) %>% 
+  select(-split)
+```
+
+**4. Use the function plsr from the package pls to estimate a partial least squares model, predicting the property using the NIR spectroscopy measurements in the training data.** Make sure that the features are on the same scale. Use leave-one-out cross-validation (built into plsr) to estimate out-of-sample performance.
+
+```{r}
+train_mod <- plsr(Protein ~ ., data = corn_train, validation = "LOO")
+
+RMSEP(train_mod)
+plot(RMSEP(train_mod), legendpos = "topright")
+```
+
+**5. Find out which component best predicts the property you chose. Explain how you did this.**
+
+```{r}
+# first we get the coefficients from the model, which is the weight that is given to each variable
+coefficients = coef(train_mod)
+# then we sort them
+coefficients_ordered = sort(coefficients[,,])
+# and then we can plot them in a barplot to see their relative importances
+barplot(tail(coefficients_ordered, 5))
+```
+
+And we find that the component that best predicts the Protein is `2488`.
+
+**6. Create a plot with on the x-axis the wavelength, and on the y-axis the strength of the loading for this component. Explain which wavelengths are most important for predicting the property you are interested in.**
+
+```{r}
+wavelengths <- as.numeric(tail(names(corn_test), 700))
+
+
+```
+
