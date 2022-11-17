@@ -8,6 +8,7 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(glmnet)
+library(boot)
 ```
 
 
@@ -41,6 +42,15 @@ crime_predictors <-
 
 crime_predictors <- as.matrix(crime_predictors)
 
-crime_lasso_mod <- cv.glmnet(x = crime_predictors, y = crime$crime_rate)
+crime_lasso_mod <- glmnet(x = crime_predictors, y = crime$crime_rate)
+crime_lasso_new_mod <- glmnet(x = crime_predictors, y = crime$crime_rate, lambda = crime_lasso_mod$lambda.min)
+  
+crime_lasso_coefs <- coef(crime_lasso_new_mod)
+
+m <- function(data,i){mean(data[i])}
+  
+# Calculate standard error using 100
+# bootstrapped samples
+boot(crime_lasso_coefs, m, 100)
 ```
 
