@@ -1,0 +1,46 @@
+---
+title: "SLS"
+author: "Ana Martins"
+date: "2022-11-17"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+```
+
+
+**Ex. 2.6** Here we use the bootstrap as the basis for inference with the lasso.
+
+**(a)** For the crime data, apply the bootstrap to estimate the standard errors of the estimated lasso coefficients. Use the non-parametric bootstrap, sampling features and outcome values with replacement from the observed data. Keep the bound fixed at its estimated value from the orginal lasso fit. Estimate as well the probability that an estimated coefficient is zero.
+
+```{r}
+crime <-
+  read.table(
+    "data/crime.txt",
+    header = F,
+    sep = "\t",
+    fileEncoding = "latin1"
+  )
+crime <-
+  crime %>%
+  mutate(
+    crime_rate = V1,
+    funding = V3,
+    hs = V4,
+    not_hs = V5,
+    college = V6,
+    college4 = V7
+  ) %>%
+  select(-V1,-V2,-V3,-V4,-V5,-V6,-V7)
+
+crime_predictors <-
+  crime %>% 
+  select(-crime_rate)
+
+crime_predictors <- as.matrix(crime_predictors)
+
+crime_lasso_mod <- cv.glmnet(x = crime_predictors, y = crime$crime_rate)
+```
+
