@@ -7,6 +7,8 @@ output: html_document
 
 ```{r}
 library(tidyverse)
+library(pls)
+library(glmnet)
 ```
 
 
@@ -54,32 +56,71 @@ corn_test <-
 ```
 
 **4. Use the function plsr from the package pls to estimate a partial least squares model, predicting the property using the NIR spectroscopy measurements in the training data.** Make sure that the features are on the same scale. Use leave-one-out cross-validation (built into plsr) to estimate out-of-sample performance.
+MISSING SCALING - FORMULA IN NOTION
+
 
 ```{r}
-train_mod <- plsr(Protein ~ ., data = corn_train, validation = "LOO")
+plsr_mod <- plsr(Protein ~ ., data = corn_train, validation = "LOO")
 
-RMSEP(train_mod)
-plot(RMSEP(train_mod), legendpos = "topright")
+RMSEP(plsr_mod)
+plot(RMSEP(plsr_mod), legendpos = "topright")
 ```
 
 **5. Find out which component best predicts the property you chose. Explain how you did this.**
 
 ```{r}
 # first we get the coefficients from the model, which is the weight that is given to each variable
-coefficients = coef(train_mod)
+coefficients = coef(plsr_mod)
 # then we sort them
-coefficients_ordered = sort(coefficients[,,])
+coefficients_ordered = sort(abs(coefficients[,,]))
 # and then we can plot them in a barplot to see their relative importances
 barplot(tail(coefficients_ordered, 5))
 ```
 
-And we find that the component that best predicts the Protein is `2488`.
+And we find that the component that best predicts the Protein is `2414`.
 
 **6. Create a plot with on the x-axis the wavelength, and on the y-axis the strength of the loading for this component. Explain which wavelengths are most important for predicting the property you are interested in.**
 
 ```{r}
 wavelengths <- as.numeric(tail(names(corn_test), 700))
 
+wv.coefs <- tibble(wavelengths, coefficients)
 
+wv.coefs %>% 
+  ggplot() +
+  geom_histogram(aes(x = wavelengths, y = abs(coefficients)), stat = "identity")
+```
+
+The higher wavelengths seem more important for the prediction.
+
+**7. Pick the number of components included in the model based on the “one standard deviation” rule (selectNcomp()). Create predictions for the test set using the resulting model.**
+
+```{r}
+ncomp <- selectNcomp(plsr_mod, method = "onesigma")
+
+plsr_new_mod <- plsr(Protein ~ ., ncomp = 8, data = corn_train, validation = "LOO")
+
+plsr_pred <- predict(plsr_new_mod, newdata = corn_test)
+```
+
+**8. Compare your PLS predictions to a LASSO linear regression model where lambda is selected based on cross-validation with the one standard deviation rule (using cv.glmnet).**
+
+```{r}
+train_predictors <-
+  corn_train %>%
+  select(-Protein)
+train_predictors <- as.matrix(train_predictors)
+
+lasso_mod <- cv.glmnet(train_predictors, corn_train$Protein)
+
+test_predictors <-
+  corn_test %>%
+  select(-Protein)
+test_predictors <- as.matrix(test_predictors)
+
+lasso_pred <- predict(lasso_mod, newx = test_predictors, s = "lambda.1se")
+
+model_list <- list(PartialLeastSquares=plsr_new_mod,LASSO=lasso_mod)
+summary(model_list)
 ```
 
