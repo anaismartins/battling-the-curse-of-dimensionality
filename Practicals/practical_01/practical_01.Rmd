@@ -1,5 +1,5 @@
 ---
-title: "Gene Expression Data"
+title: "Practical 1"
 author: "Ana Martins"
 date: "2022-11-15"
 output: html_document
@@ -8,8 +8,10 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(glmnet)
+set.seed(45)
 ```
 
+## Gene expression data
 
 **1. Read the data file gene_expressions.rds using read_rds(). What are the dimensions of the data? What is the sample size?**
 
@@ -19,12 +21,19 @@ gene_expressions <- read_rds("data/gene_expressions.rds")
 
 The sample has 237 observations with 54676 features.
 
+Subsetting the data because it's taking too long to load...
+
+```{r}
+gene_expressions <- gene_expressions[, 1:1000]
+```
+
+
 **2. As always, visualisation is a good idea. Create histograms of the first 6 variables. Describe what you notice.**
 
 ```{r}
 gene_expressions %>% 
   ggplot() +
-  geom_histogram(aes(x = `1007_s_at`), fill = NA, color = "red", show.legend = "1007_s_at") +
+  geom_histogram(aes(x = `1007_s_at`), fill = NA, color = "red") +
   geom_label(aes(x = 10.5, y = 80, label = "1007_s_at"), color = "red") +
   geom_histogram(aes(x = `1053_at`), fill = NA, color = "orange") +
   geom_label(aes(x = 7.5, y = 70, label = "1053_at"), color = "orange") +
@@ -82,5 +91,66 @@ test <-
   data %>% 
   filter(split == 0) %>% 
   select(-split)
+```
+
+## Correlation filter & logistic regression
+
+**6. Use a correlation filter to find the IDs of the 10 genes that are most related to disease status.**
+
+```{r}
+predictors <- as.matrix(train[, 2:999])
+
+correlation <- sort(abs(cor(predictors, as.numeric(train$disease))[,]))
+(most_correlated <- tail(correlation, 10))
+```
+
+**7. Perform logistic regression, predicting the outcome using the selected genes. Name the fitted object fit_lr.**
+
+```{r}
+filtered_train <-
+  train %>% 
+  select(disease, names(most_correlated))
+
+filtered_test <-
+  test %>% 
+  select(disease, names(most_correlated))
+
+fit_lr <- glm(formula = disease ~ ., data = filtered_train, family = binomial)
+pred_lr <-
+  predict(fit_lr, type = "response")
+
+filtered_train <-
+  filtered_train %>% 
+  mutate(pred_lr = ifelse(pred_lr < 0.5, 0, 1))
+```
+
+**8. Create a confusion matrix for the predictions of this model on the test set. What is the accuracy of this model?**
+
+```{r}
+pred_lr_test <- predict(fit_lr, newdata = filtered_test, type = "response")
+
+filtered_test <-
+  filtered_test %>% 
+  mutate(pred_lr = ifelse(pred_lr_test < 0.5, 0, 1))
+
+table(true = filtered_test$disease, pred = filtered_test$pred_lr)
+```
+
+## Regularized regression
+
+**9. Prepare your data for input into glmnet. Create x_train, y_train, x_test, and y_test.**
+
+```{r}
+x_train <- as.matrix(train[, 2:999])
+y_train <- train$disease
+x_test <- as.matrix(test[,2:999])
+y_test <- test$disease
+```
+
+**10. Use the glmnet function to fit a LASSO regression. Use the plot() function on the fitted model and describe what you see.**
+
+```{r}
+fit_lasso <- glmnet(x_train, y_train, family = binomial)
+plot(fit_lasso)
 ```
 
