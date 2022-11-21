@@ -9,6 +9,8 @@ output: html_document
 library(tidyverse)
 library(glmnet)
 library(boot)
+
+set.seed(45)
 ```
 
 
@@ -43,9 +45,8 @@ crime_predictors <-
 crime_predictors <- as.matrix(crime_predictors)
 
 crime_lasso_mod <- glmnet(x = crime_predictors, y = crime$crime_rate)
-crime_lasso_new_mod <- glmnet(x = crime_predictors, y = crime$crime_rate, lambda = crime_lasso_mod$lambda.min)
   
-crime_lasso_coefs <- coef(crime_lasso_new_mod)
+(crime_lasso_coefs <- coef(crime_lasso_mod, s = "lambda.min"))
 
 m <- function(data,i){mean(data[i])}
   
