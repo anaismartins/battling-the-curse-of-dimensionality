@@ -50,3 +50,6 @@ rsconnect/
 
 # I just don't want the htmls to be uploaded :)
 *.html
+
+# not including the zipped folders
+*.zip

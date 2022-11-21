@@ -21,13 +21,6 @@ gene_expressions <- read_rds("data/gene_expressions.rds")
 
 The sample has 237 observations with 54676 features.
 
-Subsetting the data because it's taking too long to load...
-
-```{r}
-gene_expressions <- gene_expressions[, 1:1000]
-```
-
-
 **2. As always, visualisation is a good idea. Create histograms of the first 6 variables. Describe what you notice.**
 
 ```{r}
@@ -101,7 +94,7 @@ test <-
 predictors <- as.matrix(train[, 2:999])
 
 correlation <- sort(abs(cor(predictors, as.numeric(train$disease))[,]))
-(most_correlated <- tail(correlation, 10))
+(most_correlated <- names(tail(correlation, 10)))
 ```
 
 **7. Perform logistic regression, predicting the outcome using the selected genes. Name the fitted object fit_lr.**
@@ -136,6 +129,8 @@ filtered_test <-
 table(true = filtered_test$disease, pred = filtered_test$pred_lr)
 ```
 
+The accuracy is 83%.
+
 ## Regularized regression
 
 **9. Prepare your data for input into glmnet. Create x_train, y_train, x_test, and y_test.**
@@ -154,3 +149,42 @@ fit_lasso <- glmnet(x_train, y_train, family = binomial)
 plot(fit_lasso)
 ```
 
+Only some coefficients are actually very different from zero when we go to a high L1 norm, meaning only some variables will actually be relevant.
+
+**11. Run cv.glmnet for your dataset. Run the plot() function on the resulting object. Explain in your own words what you see.** NB: Do not forget to set family = "binomial" to ensure that you are running logistic regression.
+
+```{r}
+fit_cv_lasso <- cv.glmnet(x_train, y_train, family = binomial)
+plot(fit_cv_lasso)
+```
+
+The higher the log(lambda) the higher the GLM Deviance.
+
+**12. Inspect the nonzero coefficients of the model with the lowest out-of-sample deviance. Hint: use the coef() function, and make sure to use the right value for the s argument to that function. Do you see overlap between the correlation filter selections and the LASSO results?**
+
+```{r}
+coefs_lasso <- rownames(coef(fit_cv_lasso, s = 'lambda.min'))[coef(fit_cv_lasso, s = 'lambda.min')[,1]!= 0]
+
+sum = 0
+for (i in most_correlated){
+  sum = sum + ifelse(i %in% coefs_lasso, 1, 0)
+}
+
+sum
+```
+
+Meaning there is almost a 50% overlap.
+
+**13. Use the predict() function on the fitted cv.glmnet object to predict disease status for the test set based on the optimized lambda value. Create a confusion matrix and compare this with the logistic regression model we made earlier in terms of accuracy.**
+
+```{r}
+pred_cv_lasso_test <- predict(fit_cv_lasso, s = "lambda.min", type = "response", newx = x_test)
+
+test <-
+  test %>% 
+  mutate(pred_cv_lasso_test = ifelse(pred_cv_lasso_test < 0.5, 0, 1))
+
+table(true = test$disease, pred = test$pred_cv_lasso_test)
+```
+
+The accuracy is the same (and so is the table).
