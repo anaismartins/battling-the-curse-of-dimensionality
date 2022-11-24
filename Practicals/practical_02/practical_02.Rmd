@@ -1,0 +1,126 @@
+---
+title: "Practical 2"
+author: "Ana Martins"
+date: "2022-11-24"
+output: html_document
+---
+
+## 2 Take home exercises
+
+### 2.1 SVD and Eigendecomposition
+
+**1. Use the function read.table() to import the data into R. Use the function as.matrix() to convert the data frame to a matrix. The two features are not centered. To center the two features the function scale() with the argument scale = FALSE can be used. Give the centered data matrix a name, for instance, C.**
+
+```{r}
+example1 <- read.table("data/Example1.dat")
+example1_matrix <- as.matrix(example1)
+C <- scale(example1_matrix, scale = FALSE)
+```
+
+**2. Calculate the sample size N and the covariance matrix S by executing the following R code, where the function t() is used to calculate the transpose of C and %*% is used for matrix multiplication.**
+
+```{r}
+N <- dim(C)[1]
+S <- t(C) %*% C/N
+```
+
+**3. Use the function svd() to apply a singular value decomposition to the centered data matrix.**
+
+```{r}
+example1_svd <- svd(C)
+```
+
+**4. Inspect the three pieces of output, that is, U, D, and V. Are the three matrices the same as on the slides?**
+
+```{r}
+example1_svd$d
+example1_svd$u
+example1_svd$v
+```
+
+For the diagonal matrix D we only get the diagonal values, instead of the full matrix, but these values are the same as the slides. The rest are the same too (obviously here we get more figures but rounding to 2 decimal places they are the same).
+
+**5. Use a single matrix product to calculate the principal component scores.**
+
+```{r}
+example1_principal_component <- C %*% example1_svd$v
+```
+
+**6. Plot the scores on the second principal component (y-axis) against the scores on the first principal component (x-axis) and let the range of the x-axis run from -18 to 18 and the range of the y-axis from -16 to 16.**
+
+```{r}
+example1_pc1 <- example1_principal_component[,1]
+example1_pc2 <- example1_principal_component[,2]
+
+plot(example1_pc1, example1_pc2, xlim = c(-18,18), ylim = c(-16,16))
+```
+
+**7. Use the function eigen() to apply an eigendecomposition to the sample covariance matrix.**
+
+```{r}
+example1_eigen <- eigen(S)
+```
+
+**8. Check whether the eigenvalues are equal to the variances of the two principal components. Be aware that the R-base function var() takes N−1 in the denominator, to get an unbiased estimate of the variance.**
+
+```{r}
+example1_pc1_var <- var(example1_pc1)*(N-1)/N
+example1_pc2_var <- var(example1_pc2)*(N-1)/N
+```
+
+Yes.
+
+**9. Finally, calculate the percentage of total variance explained by each principal component.**
+
+```{r}
+example1_total_var <- example1_pc1_var + example1_pc2_var
+
+example1_pc1_percentage <- example1_pc1_var / example1_total_var * 100
+example1_pc2_percentage <- example1_pc2_var / example1_total_var * 100
+```
+
+### 2.2 Principal component analysis
+
+```{r}
+insurance_corr <- matrix(c(1.00,	0.32,	0.95,	0.94,	0.84,	0.22,	0.47,	0.82, 0.32,	1.00,	0.06,	0.21,	0.01,	0.30,	0.10,	0.01, 0.95,	0.06,	1.00,	0.94,	0.89,	0.14, 0.44,	0.81, 0.94,	0.21,	0.94,	1.00,	0.88,	0.19,	0.50,	0.68, 0.84,	0.01,	0.89,	0.88,	1.00,	-0.23,	0.55,	0.63, 0.22,	0.30,	0.14,	0.19,	-0.23,	1.00,	-0.15,	0.21, 0.47,	0.10,	0.44,	0.50,	0.55,	-0.15,	1.00,	0.14, 0.82,	0.01,	0.81,	0.68,	0.63,	0.21,	0.14,	1.00), nrow = 8)
+```
+
+**9. Use R to apply a PCA to the sample correlation matrix.**
+
+```{r}
+insurance_corr_eigen <- eigen(insurance_corr)
+```
+
+**10. How many principal components should be extracted according to the eigenvalue-greater-than-one rule?**
+
+```{r}
+insurance_corr_eigen
+```
+
+3 principal components.
+
+**11. How much of the total variance does this number of extracted principal components explain?**
+
+```{r}
+insurance_total_var <- sum(insurance_corr_eigen$values)
+(insurance_3pc_var <- (insurance_corr_eigen$values[1] + insurance_corr_eigen$values[2] + insurance_corr_eigen$values[3]) / insurance_total_var * 100)
+```
+
+88.94%.
+
+**12. Make a scree-plot. How many principal components should be extracted according to the scree-plot?**
+
+```{r}
+x_scree <- c(1:8)
+plot(x_scree, insurance_corr_eigen$values, type = "l")
+```
+
+The elbow seems to be at 2, so 1 principal component.
+
+**13. How much of the total variance does this number of extracted principal components explain?**
+
+```{r}
+(insurance_pc1_var <- insurance_corr_eigen$values[1] / insurance_total_var * 100)
+```
+
+58.19%.
