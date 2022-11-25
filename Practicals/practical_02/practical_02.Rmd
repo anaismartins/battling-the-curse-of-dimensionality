@@ -82,7 +82,76 @@ example1_pc2_percentage <- example1_pc2_var / example1_total_var * 100
 ### 2.2 Principal component analysis
 
 ```{r}
-insurance_corr <- matrix(c(1.00,	0.32,	0.95,	0.94,	0.84,	0.22,	0.47,	0.82, 0.32,	1.00,	0.06,	0.21,	0.01,	0.30,	0.10,	0.01, 0.95,	0.06,	1.00,	0.94,	0.89,	0.14, 0.44,	0.81, 0.94,	0.21,	0.94,	1.00,	0.88,	0.19,	0.50,	0.68, 0.84,	0.01,	0.89,	0.88,	1.00,	-0.23,	0.55,	0.63, 0.22,	0.30,	0.14,	0.19,	-0.23,	1.00,	-0.15,	0.21, 0.47,	0.10,	0.44,	0.50,	0.55,	-0.15,	1.00,	0.14, 0.82,	0.01,	0.81,	0.68,	0.63,	0.21,	0.14,	1.00), nrow = 8)
+insurance_corr <-
+  matrix(
+    c(
+      1.00,
+      0.32,
+      0.95,
+      0.94,
+      0.84,
+      0.22,
+      0.47,
+      0.82,
+      0.32,
+      1.00,
+      0.06,
+      0.21,
+      0.01,
+      0.30,
+      0.10,
+      0.01,
+      0.95,
+      0.06,
+      1.00,
+      0.94,
+      0.89,
+      0.14,
+      0.44,
+      0.81,
+      0.94,
+      0.21,
+      0.94,
+      1.00,
+      0.88,
+      0.19,
+      0.50,
+      0.68,
+      0.84,
+      0.01,
+      0.89,
+      0.88,
+      1.00,
+      -0.23,
+      0.55,
+      0.63,
+      0.22,
+      0.30,
+      0.14,
+      0.19,
+      -0.23,
+      1.00,
+      -0.15,
+      0.21,
+      0.47,
+      0.10,
+      0.44,
+      0.50,
+      0.55,
+      -0.15,
+      1.00,
+      0.14,
+      0.82,
+      0.01,
+      0.81,
+      0.68,
+      0.63,
+      0.21,
+      0.14,
+      1.00
+    ),
+    nrow = 8
+  )
 ```
 
 **9. Use R to apply a PCA to the sample correlation matrix.**
@@ -94,7 +163,7 @@ insurance_corr_eigen <- eigen(insurance_corr)
 **10. How many principal components should be extracted according to the eigenvalue-greater-than-one rule?**
 
 ```{r}
-insurance_corr_eigen
+insurance_corr_eigen$values[insurance_corr_eigen$values > 1]
 ```
 
 3 principal components.
@@ -112,7 +181,8 @@ insurance_total_var <- sum(insurance_corr_eigen$values)
 
 ```{r}
 x_scree <- c(1:8)
-plot(x_scree, insurance_corr_eigen$values, type = "l")
+plot(x_scree, insurance_corr_eigen$values)
+lines(x_scree, insurance_corr_eigen$values)
 ```
 
 The elbow seems to be at 2, so 1 principal component.
@@ -124,3 +194,66 @@ The elbow seems to be at 2, so 1 principal component.
 ```
 
 58.19%.
+
+## 3 Lab exercise
+
+```{r}
+mtcars.pca <- prcomp(mtcars[, c(1:7, 10, 11)],
+                     center = TRUE,
+                     scale = TRUE)
+```
+
+**14. Have a peek at the PCA object with summary().**
+
+```{r}
+summary(mtcars.pca)
+```
+
+**15. What is the percentage of total variance explained by PC1?**
+
+62.84%.
+
+**16. What is the percentage of total variance explained by PC1, PC2, and PC3 together?**
+
+91.58%.
+
+**16. Determine the eigenvalues. How many principal components should be extracted according to the eigenvalue-greater-than-one rule?**
+
+```{r}
+eigenvalues <- mtcars.pca$sdev^2
+(eigenvalues)[eigenvalues > 1]
+```
+
+**17. What is the value of the total variance? Why?**
+
+```{r}
+total_variance <- sum(eigenvalues)
+```
+
+18. How much of the total variance is explained by the number of extracted principal components according to the eigenvalue-greater-than-one rule?
+
+```{r}
+sum((eigenvalues)[eigenvalues > 1]) / total_variance * 100
+```
+
+**19. Use the function biplot() with the argument choices = c(1, 2) to ask for a biplot for the first two principal components.**
+
+```{r}
+biplot(mtcars.pca, choice = c(1, 2))
+```
+
+**20. Make a biplot for the first and third principal components. Especially which brand of car has negative values on the first principal component and positive values on the third principal component?**
+
+```{r}
+biplot(mtcars.pca, choices = c(1, 3))
+```
+
+Mercedes.
+
+**21. Use the function screeplot() with the argument type = 'lines' to produce a scree-plot. How many principal components should be extracted according to this plot? Why? Is this number in agreement with the number of principal components extracted according to the eigenvalue-greater-than-one rule?**
+
+```{r}
+screeplot(mtcars.pca, type = "lines")
+```
+
+2 principal components because there is an elbow at 3. It does agree with the eigenvalue-greater-than-one-rule.
