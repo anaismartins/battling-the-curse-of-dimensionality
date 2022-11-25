@@ -110,7 +110,7 @@ wv.coefs %>%
   theme_minimal()
 ```
 
-The higher wavelengths seem more important for the prediction, since their coefficients are higher.
+The higher wavelengths seem more important for the prediction, since their coefficients are higher, as well as the wavelengths around 1200 to 1500. This also goes with what we already found are the best predictors in question 5.
 
 **7. Pick the number of components included in the model based on the “one standard deviation” rule (selectNcomp()). Create predictions for the test set using the resulting model.**
 
