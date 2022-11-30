@@ -9,6 +9,8 @@ output: html_document
 library(tidyverse)
 library(pls)
 library(glmnet)
+
+set.seed(45)
 ```
 
 
@@ -21,18 +23,36 @@ corn <- read_rds("data/corn.rds")
 **2. Pick a property (Moisture, Oil, Starch, or Protein) to predict.**
 
 ```{r}
-corn %>% 
+corn %>%
   ggplot() +
-  geom_histogram(aes(x = Moisture), fill = NA, color = "red") +
-  geom_label(aes(x = 13, y = 40), label = "Moisture", color = "red") +
-  geom_histogram(aes(x = Oil), fill = NA, color = "orange") +
-  geom_label(aes(x = 13, y = 35), label = "Oil", color = "orange") +
-  geom_histogram(aes(x = Protein), fill = NA, color = "yellow") +
-  geom_label(aes(x = 13, y = 30), label = "Protein", color = "yellow") +
+  geom_histogram(aes(x = Moisture),
+                 color = "#1b9e77",
+                 alpha = 0.2,
+                 fill = "#1b9e77") +
+  geom_label(aes(x = 13, y = 40),
+             label = "Moisture",
+             color = "#1b9e77",
+             fill = "white") +
+  geom_histogram(aes(x = Oil),
+                 color = "#d95f02",
+                 alpha = 0.2,
+                 fill = "#d95f02") +
+  geom_label(aes(x = 13, y = 35),
+             label = "Oil",
+             color = "#d95f02",
+             fill = "white") +
+  geom_histogram(aes(x = Protein),
+                 color = "#7570b3",
+                 alpha = 0.2,
+                 fill = "#7570b3") +
+  geom_label(aes(x = 13, y = 30),
+             label = "Protein",
+             color = "#7570b3",
+             fill = "white") +
   theme_minimal()
 ```
 
-Protein it is.
+Protein seems to have the largest variance so it can be beneficial to try to predict it as opposed to the others.
 
 **3. Split your data into a training (80%) and test (20%) set.**
 
@@ -56,11 +76,9 @@ corn_test <-
 ```
 
 **4. Use the function plsr from the package pls to estimate a partial least squares model, predicting the property using the NIR spectroscopy measurements in the training data.** Make sure that the features are on the same scale. Use leave-one-out cross-validation (built into plsr) to estimate out-of-sample performance.
-MISSING SCALING - FORMULA IN NOTION
-
 
 ```{r}
-plsr_mod <- plsr(Protein ~ ., data = corn_train, validation = "LOO")
+plsr_mod <- plsr(Protein ~ ., data = corn_train, scale = TRUE, validation = "LOO")
 
 RMSEP(plsr_mod)
 plot(RMSEP(plsr_mod), legendpos = "topright")
@@ -77,7 +95,7 @@ coefficients_ordered = sort(abs(coefficients[,,]))
 barplot(tail(coefficients_ordered, 5))
 ```
 
-And we find that the component that best predicts the Protein is `2414`.
+And we find that the component that best predicts the Protein is `2436`.
 
 **6. Create a plot with on the x-axis the wavelength, and on the y-axis the strength of the loading for this component. Explain which wavelengths are most important for predicting the property you are interested in.**
 
@@ -86,21 +104,20 @@ wavelengths <- as.numeric(tail(names(corn_test), 700))
 
 wv.coefs <- tibble(wavelengths, coefficients)
 
-wv.coefs %>% 
+wv.coefs %>%
   ggplot() +
-  geom_histogram(aes(x = wavelengths, y = abs(coefficients)), stat = "identity")
+  geom_histogram(aes(x = wavelengths, y = abs(coefficients)), stat = "identity", color = "#1b9e77") +
+  theme_minimal()
 ```
 
-The higher wavelengths seem more important for the prediction.
+The higher wavelengths seem more important for the prediction, since their coefficients are higher, as well as the wavelengths around 1200 to 1500. This also goes with what we already found are the best predictors in question 5.
 
 **7. Pick the number of components included in the model based on the “one standard deviation” rule (selectNcomp()). Create predictions for the test set using the resulting model.**
 
 ```{r}
 ncomp <- selectNcomp(plsr_mod, method = "onesigma")
 
-plsr_new_mod <- plsr(Protein ~ ., ncomp = 8, data = corn_train, validation = "LOO")
-
-plsr_pred <- predict(plsr_new_mod, newdata = corn_test)
+plsr_pred <- predict(plsr_mod, newdata = corn_test, ncomp = ncomp)
 ```
 
 **8. Compare your PLS predictions to a LASSO linear regression model where lambda is selected based on cross-validation with the one standard deviation rule (using cv.glmnet).**
@@ -120,7 +137,12 @@ test_predictors <- as.matrix(test_predictors)
 
 lasso_pred <- predict(lasso_mod, newx = test_predictors, s = "lambda.1se")
 
-model_list <- list(PartialLeastSquares=plsr_new_mod,LASSO=lasso_mod)
-summary(model_list)
+mse <- function(true, pred){
+  mean((true - pred)*(true - pred))
+}
+
+mse(corn_test$Protein, plsr_pred)
+mse(corn_test$Protein, lasso_pred)
 ```
 
+The Partial Least Squares method has better predictions, since it has lower MSE.
