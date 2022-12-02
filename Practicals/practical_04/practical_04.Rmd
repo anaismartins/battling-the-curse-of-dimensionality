@@ -1,0 +1,66 @@
+---
+title: "Practical 4"
+author: "Ana Martins"
+date: "2022-12-02"
+output: html_document
+---
+
+## 1 Introduction
+
+```{r}
+library(tidyverse)
+library(keras)
+```
+
+## 2 Take-home exercises: deep feed-forward neural network
+
+### 2.1 Data preparation
+
+**1. Load the built-in MNIST dataset by running the following code. Then, describe the structure and contents of the `mnist` object.**
+
+```{r}
+mnist <- dataset_mnist()
+```
+
+The `mnist` object is divided into training and test data and each of them has variables `x` and `y`. `x` is 60000x28x28/10000x28x28 matrix and `y` is a 60000/10000-dimensional vector.
+
+**2. Use the plot_img() function below to plot the first training image. The img parameter has to be a matrix with dimensions (28, 28).** NB: indexing in 3-dimensional arrays works the same as indexing in matrices, but you need an extra comma x[,,].
+
+```{r}
+plot_img <- function(img, col = gray.colors(255, start = 1, end = 0), ...) {
+  image(t(img), asp = 1, ylim = c(1.1, -0.1), col = col, bty = "n", axes = FALSE, ...)
+}
+
+plot_img(mnist$train$x[1,,])
+```
+
+**3. As a preprocessing step, ensure the brightness values of the images in the training and test set are in the range (0, 1)**
+
+```{r}
+summary(mnist$train$x)
+
+mnist$train$x <- mnist$train$x / 255
+mnist$test$x <- mnist$test$x / 255
+
+summary(mnist$train$x)
+```
+
+### 2.2 Multinomial logistic regression
+
+**4. Display a summary of the multinomial model using the summary() function. Describe why this model has 7850 parameters.**
+
+```{r}
+multinom  <- 
+  keras_model_sequential(input_shape = c(28, 28)) %>% # initialize a sequential model
+  layer_flatten() %>% # flatten 28*28 matrix into single vector
+  layer_dense(10, activation = "softmax") # softmax outcome == logistic regression for each of 10 outputs
+
+multinom$compile(
+  loss = "sparse_categorical_crossentropy", # loss function for multinomial outcome
+  optimizer = "adam", # we use this optimizer because it works well
+  metrics = list("accuracy") # we want to know training accuracy in the end
+)
+
+summary(multinom)
+```
+

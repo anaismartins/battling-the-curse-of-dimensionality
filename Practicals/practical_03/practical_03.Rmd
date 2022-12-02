@@ -96,7 +96,7 @@ prop.table(lab, margin = 2)
 
 **9. What is the conditional proportion of full-time employed females given tertiary level of education and what is the conditional proportion of full-time employed males given tertiary level of education?**
 
-40.378762% and 36.971667%.
+40.378762% and 31.146432%.
 
 **10. What is the conditional proportion of females with the lowest level of education given economically inactive? What is the conditional proportion of males with the lowest level of education given economically inactive?**
 
