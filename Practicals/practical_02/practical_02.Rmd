@@ -200,7 +200,7 @@ The elbow seems to be at 2, so 1 principal component.
 ```{r}
 mtcars.pca <- prcomp(mtcars[, c(1:7, 10, 11)],
                      center = TRUE,
-                     scale = TRUE)
+                     scale. = TRUE)
 ```
 
 **14. Have a peek at the PCA object with summary().**
@@ -230,6 +230,8 @@ eigenvalues <- mtcars.pca$sdev^2
 total_variance <- sum(eigenvalues)
 ```
 
+Because it is the same number as the number of variables and we have the variances scaled.
+
 18. How much of the total variance is explained by the number of extracted principal components according to the eigenvalue-greater-than-one rule?
 
 ```{r}
@@ -253,7 +255,7 @@ Mercedes.
 **21. Use the function screeplot() with the argument type = 'lines' to produce a scree-plot. How many principal components should be extracted according to this plot? Why? Is this number in agreement with the number of principal components extracted according to the eigenvalue-greater-than-one rule?**
 
 ```{r}
-screeplot(mtcars.pca, type = "lines")
+screeplot(mtcars.pca, type = "l")
 ```
 
 2 principal components because there is an elbow at 3. It does agree with the eigenvalue-greater-than-one-rule.

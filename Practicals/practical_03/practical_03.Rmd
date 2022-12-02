@@ -64,3 +64,61 @@ plot(data_ca)
 plot(data_ca, map = 'rowprincipal')
 ```
 
+## 2 Lab exercise
+
+```{r}
+lab <- as.matrix(read.table("data/lab.txt"))
+```
+
+**6. Give the rows 1 to 6 the labels E1 to E6, respectively. Give the columns 1 to 4 the labels A1F to A4F, and the columns 5 to 8 the labels A1M to A4M, respectively. Give a visualization of the correspondence matrix.**
+
+```{r}
+rownames(lab) <- c('E1', 'E2', 'E3', 'E4', 'E5', 'E6')
+colnames(lab) <- c('A1F', 'A2F', 'A3F', 'A4F', 'A1M', 'A2M', 'A3M', 'A4M')
+
+ggballoonplot(lab, fill ='value')
+```
+
+**7. Give the proportion of full-time employed females with secondary level of education.**
+
+```{r}
+prop.table(lab)
+```
+
+4.787468%.
+
+**8. Give the matrices of row profiles and column profiles.**
+
+```{r}
+prop.table(lab, margin = 1)
+prop.table(lab, margin = 2)
+```
+
+**9. What is the conditional proportion of full-time employed females given tertiary level of education and what is the conditional proportion of full-time employed males given tertiary level of education?**
+
+40.378762% and 31.146432%.
+
+**10. What is the conditional proportion of females with the lowest level of education given economically inactive? What is the conditional proportion of males with the lowest level of education given economically inactive?**
+
+41.398910% and 42.639405%.
+
+**11. Apply a correspondence analysis to the data. How large is the total inertia?**
+
+```{r}
+lab_ca <- ca(lab)
+summary(lab_ca)
+```
+
+0.244955.
+
+**12. Set the desired minimum proportion of explained inertia to .85. How many underlying dimensions are sufficient? What is the proportion of inertia explained by this number of dimensions?**
+
+2 dimensions, 97.9%.
+
+**13. Give the symmetric map for the final solution.**
+
+```{r}
+plot(lab_ca)
+```
+
+
