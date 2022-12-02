@@ -8,6 +8,7 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(glmnet)
+
 set.seed(45)
 ```
 
@@ -20,6 +21,13 @@ gene_expressions <- read_rds("data/gene_expressions.rds")
 ```
 
 The sample has 237 observations with 54676 features.
+
+*Solution:*
+
+```{r}
+dim(gene_expressions)
+```
+
 
 **2. As always, visualisation is a good idea. Create histograms of the first 6 variables. Describe what you notice.**
 
@@ -43,6 +51,20 @@ gene_expressions %>%
 
 They all have a peak at different heights.
 
+*Solution:*
+
+```{r}
+gene_expressions[,1:7] %>% 
+  pivot_longer(-sample, names_to = "gene") %>% 
+  ggplot(aes(x = value, fill = gene)) +
+  geom_histogram(color = "black", bins = 35) +
+  theme_minimal() +
+  facet_wrap(~gene) +
+  labs(x = "Expression", y = "Count") +
+  scale_fill_viridis_d(guide = "none")
+```
+
+
 **3. We now only have the gene expression data, but the labels are in the file phenotypes.rds. Load that file, select() the relevant columns for classification into normal and tumor tissue, and join() it with the gene expression data, based on the tissue identifier in the sample column. Give the resulting dataset a good name!**
 
 ```{r}
@@ -65,6 +87,13 @@ summary(data["disease"])
 ```
 
 No, the the classes are pretty evenly distributed.
+
+Solution:
+
+```{r}
+prop.table(table(data$disease))
+```
+
 
 **5. Split the data into a training (80%) and a test set (20%). We will use the training set for model development in the next section.**
 
@@ -97,6 +126,21 @@ correlation <- sort(abs(cor(predictors, as.numeric(train$disease))[,]))
 (most_correlated <- names(tail(correlation, 10)))
 ```
 
+Solution:
+
+```{r}
+y <- as.numeric(train$disease == "tumor")
+
+X <-
+  train %>% 
+  select(-disease, -sample) %>% 
+  as.matrix()
+
+cors <- apply(X, 2, cor, y = y)
+(cors_10 <- sort(abs(cors), decreasing = TRUE)[1:10])
+```
+
+
 **7. Perform logistic regression, predicting the outcome using the selected genes. Name the fitted object fit_lr.**
 
 ```{r}
@@ -111,6 +155,8 @@ filtered_test <-
 fit_lr <- glm(formula = disease ~ ., data = filtered_train, family = binomial)
 pred_lr <-
   predict(fit_lr, type = "response")
+
+summary(fit_lr)
 
 filtered_train <-
   filtered_train %>% 
@@ -141,6 +187,17 @@ y_train <- train$disease
 x_test <- as.matrix(test[,2:999])
 y_test <- test$disease
 ```
+
+Solution:
+
+```{r}
+x_train <- train %>% select(-sample, -disease) %>% as.matrix()
+y_train <- train %>% pull(disease)
+
+x_test <- test %>% select(-sample, -disease) %>% as.matrix()
+y_test <- test %>% pull(disease)
+```
+
 
 **10. Use the glmnet function to fit a LASSO regression. Use the plot() function on the fitted model and describe what you see.**
 
