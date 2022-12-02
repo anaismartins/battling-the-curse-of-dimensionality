@@ -1,0 +1,66 @@
+---
+title: "Practical 03"
+author: "Ana Martins"
+date: "2022-11-30"
+output: html_document
+---
+
+## 1 Take home exercise
+
+```{r}
+data <- as.matrix(read.table("data\\data.txt"))
+
+rownames(data) <- c('UN F','LN F','UM F','LM F','F F')
+colnames(data) <- c('UN S','LN S','UM S','LM S','F S')
+
+data_prop <- prop.table(data)
+
+sum(data_prop)
+
+data_prop1 <- prop.table(data, margin = 1)
+data_prop2 <- prop.table(data, margin = 2)
+
+rowSums(data_prop1)
+colSums(data_prop2)
+
+library(ggpubr)
+ggballoonplot(data, fill ='value')
+
+library(ca)
+```
+
+**1. Apply a correspondence analysis to the GB mobility table. The function to be used is ca().**
+
+```{r}
+data_ca <- ca(data)
+```
+
+**2. Explore the arguments and values of the function ca() using ?ca. Obtain the row and column standard coordinates.**
+
+```{r}
+?ca
+
+data_ca$rowcoord
+data_ca$colcoord
+```
+
+**3. Use the function summary() to determine the proportion of total inertia explained by the first two extracted dimensions.**
+
+```{r}
+summary(data_ca)
+```
+
+94.5%.
+
+**4. Use the function plot() to obtain a symmetric map.**
+
+```{r}
+plot(data_ca)
+```
+
+**5. Use the argument map='rowprincipal' to obtain an asymmetric map with principal coordinates for rows and standard coordinates for columns.**
+
+```{r}
+plot(data_ca, map = 'rowprincipal')
+```
+
