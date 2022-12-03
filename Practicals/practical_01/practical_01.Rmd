@@ -230,6 +230,17 @@ for (i in most_correlated){
 sum
 ```
 
+Solution:
+
+```{r}
+coefs_1se <- coef(fit_cv_lasso, s = "lambda.min")
+nonzero_idx <- which(coefs_1se[,1] != 0)
+coefs_1se[nonzero_idx,]
+
+intersect(names(cors_10), names(coefs_1se[nonzero_idx,]))
+```
+
+
 **13. Use the predict() function on the fitted cv.glmnet object to predict disease status for the test set based on the optimized lambda value. Create a confusion matrix and compare this with the logistic regression model we made earlier in terms of accuracy.**
 
 ```{r}
