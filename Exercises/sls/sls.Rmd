@@ -40,18 +40,21 @@ crime <-
 
 crime_predictors <-
   crime %>% 
-  select(-crime_rate)
+  select(-crime_rate) %>% 
+  as.matrix()
 
-crime_predictors <- as.matrix(crime_predictors)
+lasso_mod <- cv.glmnet(crime_predictors, crime$crime_rate, alpha = 1)
+lasso_new_mod <- glmnet(crime_predictors, crime$crime_rate, alpha = 1, lambda = lasso_mod$lambda.min)
+coef(lasso_mod)
 
-crime_lasso_mod <- glmnet(x = crime_predictors, y = crime$crime_rate)
-  
-(crime_lasso_coefs <- coef(crime_lasso_mod, s = "lambda.min"))
-
-m <- function(data,i){mean(data[i])}
+lasso <- function(x, y){
+  lasso_mod <- cv.glmnet(as.matrix(x), y, alpha = 1)
+  lasso_new_mod <- glmnet(as.matrix(x), y, alpha = 1, lambda = lasso_mod$lambda.min)
+  coef(lasso_mod)
+}
   
 # Calculate standard error using 100
 # bootstrapped samples
-boot(crime_lasso_coefs, m, 100)
+(boot(crime, lasso, 100))
 ```
 
