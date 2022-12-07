@@ -64,3 +64,130 @@ multinom$compile(
 summary(multinom)
 ```
 
+The parameters are the connections between the layers, 784 * 10 + 1 * 10 = 7850, i.e., (No. of units in 1st layer) * (No. of units in output layer) + (Bias term) * (No. of units in output layer)
+
+**5. Train the model for 5 epochs using the code below. What accuracy do we obtain in the validation set?** (NB: the multinom object is changed “in-place”, which means you don’t have to assign it to another variable)
+
+```{r}
+multinom %>% fit(
+  x = mnist$train$x,
+  y = mnist$train$y,
+  epochs = 5,
+  validation_split = 0.2,
+  verbose = 1
+)
+```
+
+92.75%.
+
+**6. Train the model for another 5 epochs. What accuracy do we obtain in the validation set?**
+
+```{r}
+multinom %>% fit(
+  x = mnist$train$x,
+  y = mnist$train$y,
+  epochs = 5,
+  validation_split = 0.2,
+  verbose = 1
+)
+```
+
+92.72%...
+
+### 2.3 Deep feed-forward neural networks.
+
+**7. Create and compile a feed-forward neural network with the following properties. Ensure that the model has 50890 parameters.**
+
+- sequential model
+- flatten layer
+- dense layer with 64 hidden units and “relu” activation function
+- dense output layer with 10 units and softmax activation function
+
+You may reuse code from the multinomial model
+
+```{r}
+dff <-
+  keras_model_sequential(input_shape = c(28, 28)) %>% 
+  layer_flatten() %>% 
+  layer_dense(64, activation = "relu") %>% 
+  layer_dense(10, activation = "softmax")
+
+dff$compile(
+  loss = "sparse_categorical_crossentropy", # loss function for multinomial outcome
+  optimizer = "adam", # we use this optimizer because it works well
+  metrics = list("accuracy") # we want to know training accuracy in the end
+)
+
+summary(dff)
+```
+
+**7. Train the model for 10 epochs. What do you see in terms of validation accuracy, also compared to the multinomial model?**
+
+```{r}
+dff %>% fit(
+  x = mnist$train$x,
+  y = mnist$train$y,
+  epochs = 10,
+  validation_split = 0.2,
+  verbose = 1
+)
+```
+
+97.29%, larger than the multinomial.
+
+**8. Create predictions for the test data using the two trained models (using the function below). Create a confusion matrix and compute test accuracy for these two models. Write down any observations you have.**
+
+```{r}
+class_predict <- function(model, x_train) predict(model, x = x_train) %>% apply(1, which.max) - 1
+
+multinom_pred <- class_predict(multinom, mnist$test$x)
+dff_pred <- class_predict(dff, mnist$test$x)
+
+multinom_cmat <- table(true = mnist$test$y, multinom = multinom_pred)
+dff_cmat <- table(true = mnist$test$y, dff = dff_pred)
+
+sum(diag(multinom_cmat)) / sum(multinom_cmat)
+sum(diag(dff_cmat)) / sum (dff_cmat)
+```
+
+We get about the same accuracies as before, as expected, since we did validation for the compiling.
+
+**9. OPTIONAL: if you have time, create and estimate (10 epochs) a deep feed-forward model with the following properties. Compare this model to the previous models on the test data.**
+
+- sequential model
+- flatten layer
+- dense layer with 128 hidden units and “relu” activation function
+- dense layer with 64 hidden units and “relu” activation function
+- dense output layer with 10 units and softmax activation function
+
+```{r}
+dff2 <-
+  keras_model_sequential(input_shape = c(28, 28)) %>% 
+  layer_flatten() %>% 
+  layer_dense(128, activation = "relu") %>% 
+  layer_dense(64, activation = "relu") %>% 
+  layer_dense(10, activation = "softmax")
+
+dff2$compile(
+  loss = "sparse_categorical_crossentropy", # loss function for multinomial outcome
+  optimizer = "adam", # we use this optimizer because it works well
+  metrics = list("accuracy") # we want to know training accuracy in the end
+)
+
+summary(dff2)
+
+dff2 %>% fit(
+  x = mnist$train$x,
+  y = mnist$train$y,
+  epochs = 10,
+  validation_split = 0.2,
+  verbose = 1
+)
+
+dff2_pred <- class_predict(dff2, mnist$test$x)
+dff2_cmat <- table(true = mnist$test$y, pred = dff2_pred)
+
+sum(diag(dff2_cmat)) / sum(dff_cmat)
+```
+
+A little larger than the previous network.
