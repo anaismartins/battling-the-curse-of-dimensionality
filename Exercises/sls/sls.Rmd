@@ -16,7 +16,7 @@ set.seed(45)
 
 **Ex. 2.6** Here we use the bootstrap as the basis for inference with the lasso.
 
-**(a)** For the crime data, apply the bootstrap to estimate the standard errors of the estimated lasso coefficients. Use the non-parametric bootstrap, sampling features and outcome values with replacement from the observed data. Keep the bound fixed at its estimated value from the orginal lasso fit. Estimate as well the probability that an estimated coefficient is zero.
+**(a)** For the crime data, apply the bootstrap to estimate the standard errors of the estimated lasso coefficients. Use the non-parametric bootstrap, sampling features and outcome values with replacement from the observed data. Keep the bound fixed at its estimated value from the original lasso fit. Estimate as well the probability that an estimated coefficient is zero.
 
 ```{r}
 crime <-
@@ -38,23 +38,23 @@ crime <-
   ) %>%
   select(-V1,-V2,-V3,-V4,-V5,-V6,-V7)
 
-crime_predictors <-
-  crime %>% 
-  select(-crime_rate) %>% 
-  as.matrix()
-
-lasso_mod <- cv.glmnet(crime_predictors, crime$crime_rate, alpha = 1)
-lasso_new_mod <- glmnet(crime_predictors, crime$crime_rate, alpha = 1, lambda = lasso_mod$lambda.min)
-coef(lasso_mod)
-
-lasso <- function(x, y){
-  lasso_mod <- cv.glmnet(as.matrix(x), y, alpha = 1)
-  lasso_new_mod <- glmnet(as.matrix(x), y, alpha = 1, lambda = lasso_mod$lambda.min)
-  coef(lasso_mod)
+boot_function <- function(data, indices){
+  d <- data[indices, ]
+  
+  predictors <-
+    d %>% 
+    select(-crime_rate) %>% 
+    as.matrix()
+  
+  lasso_mod <- cv.glmnet(predictors, d$crime_rate, alpha = 1)
+  obj <- glmnet(predictors, d$crime_rate, alpha = 1, lambda = lasso_mod$lambda.min)
+  (coefs <- coef(obj))
+  coefs[, "s0"]
 }
   
 # Calculate standard error using 100
 # bootstrapped samples
-(boot(crime, lasso, 100))
+(bootstrap <- boot(crime, boot_function, 100))
 ```
 
+**(b)** Repeat part (a), but now re-estimate lambda for each bootstrap replication. Compare the results to those in part (a).
