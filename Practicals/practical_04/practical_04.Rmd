@@ -143,8 +143,8 @@ class_predict <- function(model, x_train) predict(model, x = x_train) %>% apply(
 multinom_pred <- class_predict(multinom, mnist$test$x)
 dff_pred <- class_predict(dff, mnist$test$x)
 
-multinom_cmat <- table(true = mnist$test$y, multinom = multinom_pred)
-dff_cmat <- table(true = mnist$test$y, dff = dff_pred)
+(multinom_cmat <- table(true = mnist$test$y, multinom = multinom_pred))
+(dff_cmat <- table(true = mnist$test$y, dff = dff_pred))
 
 sum(diag(multinom_cmat)) / sum(multinom_cmat)
 sum(diag(dff_cmat)) / sum (dff_cmat)
@@ -190,4 +190,117 @@ dff2_cmat <- table(true = mnist$test$y, pred = dff2_pred)
 sum(diag(dff2_cmat)) / sum(dff_cmat)
 ```
 
-A little larger than the previous network.
+A little larger than the previous network, 97.66%.
+
+## 3 Lab exercises: convolutional neural network
+
+**10. add a “channel” dimension to the training and test data using the following code. Plot an image using the first channel of the 314th training example (this is a 9).**
+
+```{r}
+# add channel dimension to input (required for convolution layers)
+(dim(mnist$train$x) <- c(dim(mnist$train$x), 1))
+(dim(mnist$test$x)  <- c(dim(mnist$test$x), 1))
+
+plot_img(mnist$train$x[314,,,])
+```
+
+**11. Create and compile a convolutional neural network using the following code. Describe the different layers in your own words.**
+
+```{r}
+cnn <- 
+  # declaring that we have a model with multiple layers and the format
+  keras_model_sequential(input_shape = c(28, 28, 1)) %>% 
+  # convulution layer with 6 filters of size 5x5
+  layer_conv_2d(filters = 6, kernel_size = c(5, 5)) %>% 
+  # pooling layer of size 4x4
+  layer_max_pooling_2d(pool_size = c(4, 4)) %>%
+  # flatten layer
+  layer_flatten() %>% 
+  # layer to get the units to 32
+  layer_dense(units = 32, activation = "relu") %>% 
+  # layer to get the output to 10 units
+  layer_dense(10, activation = "softmax")
+
+cnn %>% 
+  compile(
+    loss = "sparse_categorical_crossentropy",
+    optimizer = "adam", 
+    metrics = c("accuracy")
+  )
+```
+
+**12. Fit this model on the training data (10 epochs) and compare it to the previous models.**
+
+```{r}
+cnn %>%
+  fit(
+    x = mnist$train$x,
+    y = mnist$train$y,
+    epochs = 10,
+    validation_split = 0.2,
+    verbose = 1
+  )
+```
+
+97.32%.
+
+**13. Create another CNN which has better validation performance within 10 epochs. Compare your validation accuracy to that of your peers.**
+
+```{r}
+alexnet <-
+  keras_model_sequential(input_shape = c(28, 28, 1)) %>%
+  layer_conv_2d(filters = 6, kernel_size = c(5, 5), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(3, 3)) %>%
+  layer_conv_2d(filters = 6, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(3, 3)) %>%
+  layer_flatten() %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(10, activation = "softmax")
+
+alexnet %>%
+  compile(loss = "sparse_categorical_crossentropy",
+          optimizer = "adam",
+          metrics = c("accuracy"))
+
+alexnet %>%
+  fit(
+    x = mnist$train$x,
+    y = mnist$train$y,
+    epochs = 10,
+    validation_split = 0.2,
+    verbose = 1
+  )
+```
+
+```{r}
+vgg16 <-
+  keras_model_sequential(input_shape = c(28, 28, 1)) %>%
+  layer_conv_2d(filters = 6, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_conv_2d(filters = 6, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 6, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_conv_2d(filters = 6, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_conv_2d(filters = 6, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_flatten() %>% 
+  layer_dense(units = 32, activation = "relu") %>% 
+  layer_dense(units = 32, activation = "relu") %>% 
+  layer_dense(10, activation = "softmax")
+
+vgg16 %>%
+  compile(loss = "sparse_categorical_crossentropy",
+          optimizer = "adam",
+          metrics = c("accuracy"))
+
+vgg16 %>%
+  fit(
+    x = mnist$train$x,
+    y = mnist$train$y,
+    epochs = 10,
+    validation_split = 0.2,
+    verbose = 1
+  )
+```
+
+97.87%.
