@@ -1,0 +1,405 @@
+---
+title: "Practical 5"
+author: "Ana Martins"
+date: "2022-12-15"
+output: html_document
+---
+
+## Introduction
+
+```{r}
+library(MASS)
+library(tidyverse)
+library(patchwork)
+library(ggdendro)
+```
+
+**1. The code does not have comments. Add descriptive comments to the code below.**
+
+```{r}
+# setting the random seed so the same results can be reproduced
+set.seed(123)
+
+# creating a 2x2 matrix 
+sigma      <- matrix(c(1, .5, .5, 1), 2, 2)
+# creating a random sample of 2 x 100 values with mean on 5
+sim_matrix <- mvrnorm(n = 100, mu = c(5, 5), 
+                      Sigma = sigma)
+# setting the column names of this matrix
+colnames(sim_matrix) <- c("x1", "x2")
+
+# creating a tibble from the sim_matrix and assigning 3 random classes to the data
+sim_df <- 
+  sim_matrix %>% 
+  as_tibble() %>%
+  mutate(class = sample(c("A", "B", "C"), size = 100, 
+                        replace = TRUE))
+
+# setting the x2 and x1 values to a variation depending on the class
+sim_df_small <- 
+  sim_df %>%
+  mutate(x2 = case_when(class == "A" ~ x2 + .5,
+                        class == "B" ~ x2 - .5,
+                        class == "C" ~ x2 + .5),
+         x1 = case_when(class == "A" ~ x1 - .5,
+                        class == "B" ~ x1 - 0,
+                        class == "C" ~ x1 + .5))
+# same thing as before but with a bigger variation
+sim_df_large <- 
+  sim_df %>%
+  mutate(x2 = case_when(class == "A" ~ x2 + 2.5,
+                        class == "B" ~ x2 - 2.5,
+                        class == "C" ~ x2 + 2.5),
+         x1 = case_when(class == "A" ~ x1 - 2.5,
+                        class == "B" ~ x1 - 0,
+                        class == "C" ~ x1 + 2.5))
+```
+
+2. Prepare two unsupervised datasets by removing the class feature.
+
+```{r}
+sim_df_small <-
+  sim_df_small %>% 
+  select(-class)
+
+sim_df_large <-
+  sim_df_large %>% 
+  select(-class)
+```
+
+**3. For each of these datasets, create a scatterplot. Combine the two plots into a single frame (look up the patchwork package to see how to do this!) What is the difference between the two datasets?**
+
+```{r}
+sim_df_small_plot <-
+  sim_df_small %>% 
+  ggplot(mapping = aes(x1, x2)) +
+  geom_point(color = "#1b9e77") +
+  theme_minimal() +
+  ggtitle("sim_df_small")
+
+sim_df_large_plot <-
+  sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2)) +
+  geom_point(color = "#d95f02") +
+  theme_minimal() +
+  ggtitle("sim_df_large")
+
+sim_df_small_plot + sim_df_large_plot
+```
+
+For the sim_df_large there is much more variation within the classes (you can actually see classes even though they come from random data).
+
+## 2 Hierarchical clustering
+
+**4. Run a hierarchical clustering on these datasets and display the result as dendrograms. Use euclidian distances and the complete agglomeration method. Make sure the two plots have the same y-scale. What is the difference between the dendrograms? (Hint: functions you’ll need are hclust, ggdendrogram, and ylim)**
+
+```{r}
+sim_df_small_dist <- dist(sim_df_small, method = "euclidean")
+sim_df_large_dist <- dist(sim_df_large, method = "euclidean")
+
+sim_df_small_hclust <- hclust(sim_df_small_dist, method = "complete")
+sim_df_large_hclust <- hclust(sim_df_large_dist, method = "complete")
+
+ggdendrogram(sim_df_small_hclust) +
+  ylim(0, 8) +
+  ggtitle("sim_df_small")
+ggdendrogram(sim_df_large_hclust) +
+  ylim(0, 8) +
+  ggtitle("sim_df_large")
+```
+
+The one for the less variations has much less distance between "types" of clusters, i.e. the vertical distances are much smaller.
+
+**5. For the dataset with small differences, also run a complete agglomeration hierarchical cluster with manhattan distance.**
+
+```{r}
+sim_df_small_dist_manhattan <- dist(sim_df_small, method = "manhattan")
+sim_df_small_manhattan_hclust <- hclust(sim_df_small_dist_manhattan, method = "complete")
+```
+
+**6. Use the cutree() function to obtain the cluster assignments for three clusters and compare the cluster assignments to the 3-cluster euclidian solution. Do this comparison by creating two scatter plots with cluster assignment mapped to the colour aesthetic. Which difference do you see?**
+
+```{r}
+sim_df_small_cut <- cutree(sim_df_small_hclust, k = 3)
+sim_df_small_manhattan_cut <- cutree(sim_df_small_manhattan_hclust, k = 3)
+
+sim_df_small <-
+  sim_df_small %>% 
+  mutate(class = sim_df_small_cut, class_manhattan = sim_df_small_manhattan_cut)
+
+sim_df_small_clustered_plot <-
+  sim_df_small %>%
+  ggplot(mapping = aes(x1, x2, color = as.factor(class))) +
+  geom_point() +
+  theme_minimal() +
+  ggtitle("euclidean")
+
+sim_df_small_manhattan_clustered_plot <-
+  sim_df_small %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(class_manhattan))) +
+  geom_point() + 
+  theme_minimal() +
+  ggtitle("manhattan")
+
+sim_df_small_clustered_plot + sim_df_small_manhattan_clustered_plot
+```
+
+The one with the manhattan distance divides the points into 2 different clusters even with points very close to each other.
+
+## 3 K-means clustering
+
+**7. Create k-means clusterings with 2, 3, 4, and 6 classes on the large difference data. Again, create coloured scatter plots for these clusterings.**
+
+```{r}
+sim_df_large_2 <- kmeans(sim_df_large, 2)$cluster
+sim_df_large_3 <- kmeans(sim_df_large, 3)$cluster
+sim_df_large_4 <- kmeans(sim_df_large, 4)$cluster
+sim_df_large_6 <- kmeans(sim_df_large, 6)$cluster
+
+sim_df_large <-
+  sim_df_large %>% 
+  mutate(cluster2 = sim_df_large_2, cluster3 = sim_df_large_3, cluster4 = sim_df_large_4, cluster6 = sim_df_large_6)
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster2))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("2 clusters")
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster3))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("3 clusters")
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster4))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("4 clusters")
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster6))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("6 clusters")
+```
+
+**8. Do the same thing again a few times. Do you see the same results every time? where do you see differences?**
+
+```{r}
+sim_df_large_2 <- kmeans(sim_df_large, 2)$cluster
+sim_df_large_3 <- kmeans(sim_df_large, 3)$cluster
+sim_df_large_4 <- kmeans(sim_df_large, 4)$cluster
+sim_df_large_6 <- kmeans(sim_df_large, 6)$cluster
+
+sim_df_large <-
+  sim_df_large %>% 
+  mutate(cluster2 = sim_df_large_2, cluster3 = sim_df_large_3, cluster4 = sim_df_large_4, cluster6 = sim_df_large_6)
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster2))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("2 clusters")
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster3))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("3 clusters")
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster4))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("4 clusters")
+
+sim_df_large %>% 
+  ggplot(mapping = aes(x1, x2, color = as.factor(cluster6))) +
+  geom_point() +
+  theme_minimal() + 
+  ggtitle("6 clusters")
+```
+
+The differences are mostly on the methods with 2 and 4 clusters.
+
+**9. Find a way online to perform bootstrap stability assessment for the 3 and 6-cluster solutions.**
+
+```{r}
+library(fpc)
+
+sim_df_large_assessment3 <- clusterboot(sim_df_large,
+                                        clustermethod = hclustCBI,
+                                        method = "ward",
+                                        k = 3)
+
+sim_df_large_assessment3$bootmean
+sim_df_large_assessment3$bootbrd
+
+sim_df_large_assessment6 <- clusterboot(sim_df_large,
+                                        clustermethod = hclustCBI,
+                                        method = "ward",
+                                        k = 6)
+
+sim_df_large_assessment6$bootmean
+sim_df_large_assessment6$bootbrd
+```
+
+Clusters with higher bootbrd are more unstable.
+
+## 4 Challenge question
+
+**10. Create a function to perform k-medians clustering**
+
+```{r}
+kmedians <- function(data, k) {
+  loop <- TRUE
+  prev <- c(rep(0, nrow(data)))
+  
+  it <- 0
+  
+  while (loop) {
+    s <- c(1:k)
+    
+    cluster <-
+      sample(s, nrow(data), replace = TRUE, prob = c(rep(100 / k, k)))
+    
+    data <-
+      data %>%
+      select(x1, x2) %>%
+      mutate(cluster = cluster)
+    
+    for (i in 1:k) {
+      datai <-
+        data %>%
+        filter(cluster == i)
+      
+      x[i] <- median(datai$x1)
+      y[i] <- median(datai$x2)
+      
+    }
+    
+    cl <- c(rep(1, nrow(data)))
+    
+    for (i in 1:nrow(data)) {
+      smallest <- sqrt((x[1] - data$x1[i]) ^ 2 + (y[1] - data$x2[i]) ^ 2)
+      for (j in 2:k) {
+        if (sqrt((x[j] - data$x1[i]) ^ 2 + (y[j] - data$x2[i]) ^ 2) < smallest) {
+          smallest <- sqrt((x[j] - data$x1[i]) ^ 2 + (y[j] - data$x2[i]) ^ 2)
+          cl[i] <- j
+        }
+      }
+      
+    }
+    
+    data <-
+      data %>%
+      mutate(cluster = cl)
+    
+    sum <- 0
+    
+    for (i in 1:nrow(data)) {
+      if (prev[i] == data$cluster[i]) {
+        sum <- sum + 1
+      }
+    }
+    
+    if (sum == 100)
+      loop <- FALSE
+    
+    prev <- data$cluster
+    it <- it + 1
+    
+  }
+  
+  print(it)
+  
+  prev
+  
+}
+
+out <- kmedians(sim_df_large, 3)
+```
+
+**11. Add an input parameter smart_init. If this is set to TRUE, initialize cluster assignments using hierarchical clustering (from hclust). Using the unsupervised sim_df_small, look at the number of iterations needed when you use this method vs when you randomly initialize.**
+
+```{r}
+kmedians <- function(data, k, start_init = FALSE) {
+  loop <- TRUE
+  prev <- c(rep(0, nrow(data)))
+  
+  it <- 0
+  
+  while (loop) {
+    s <- c(1:k)
+    
+    if (start_init) {
+      dist <- dist(data)
+      hclust <- hclust(dist)
+      cluster <- cutree(hclust, k)
+    } else {
+      cluster <-
+        sample(s,
+               nrow(data),
+               replace = TRUE,
+               prob = c(rep(100 / k, k)))
+    }
+    
+    data <-
+      data %>%
+      select(x1, x2) %>%
+      mutate(cluster = cluster)
+    
+    for (i in 1:k) {
+      datai <-
+        data %>%
+        filter(cluster == i)
+      
+      x[i] <- median(datai$x1)
+      y[i] <- median(datai$x2)
+      
+    }
+    
+    cl <- c(rep(1, nrow(data)))
+    
+    for (i in 1:nrow(data)) {
+      smallest <- sqrt((x[1] - data$x1[i]) ^ 2 + (y[1] - data$x2[i]) ^ 2)
+      for (j in 2:k) {
+        if (sqrt((x[j] - data$x1[i]) ^ 2 + (y[j] - data$x2[i]) ^ 2) < smallest) {
+          smallest <- sqrt((x[j] - data$x1[i]) ^ 2 + (y[j] - data$x2[i]) ^ 2)
+          cl[i] <- j
+        }
+      }
+      
+    }
+    
+    data <-
+      data %>%
+      mutate(cluster = cl)
+    
+    sum <- 0
+    
+    for (i in 1:nrow(data)) {
+      if (prev[i] == data$cluster[i]) {
+        sum <- sum + 1
+      }
+    }
+    
+    if (sum == 100)
+      loop <- FALSE
+    
+    prev <- data$cluster
+    it <- it + 1
+    
+  }
+  
+  print(it)
+  
+  prev
+  
+}
+
+out <- kmedians(sim_df_large, 3, start_init = TRUE)
+```
+
