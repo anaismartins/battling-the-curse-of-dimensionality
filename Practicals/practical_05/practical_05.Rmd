@@ -101,10 +101,10 @@ sim_df_small_hclust <- hclust(sim_df_small_dist, method = "complete")
 sim_df_large_hclust <- hclust(sim_df_large_dist, method = "complete")
 
 ggdendrogram(sim_df_small_hclust) +
-  ylim(0, 8) +
-  ggtitle("sim_df_small")
+  ylim(0, 10) +
+  ggtitle("sim_df_small") +
 ggdendrogram(sim_df_large_hclust) +
-  ylim(0, 8) +
+  ylim(0, 10) +
   ggtitle("sim_df_large")
 ```
 
@@ -258,6 +258,8 @@ kmedians <- function(data, k) {
   prev <- c(rep(0, nrow(data)))
   
   it <- 0
+  x <- vector()
+  y <- vector()
   
   while (loop) {
     s <- c(1:k)
@@ -330,6 +332,8 @@ kmedians <- function(data, k, start_init = FALSE) {
   prev <- c(rep(0, nrow(data)))
   
   it <- 0
+  x <- vector()
+  y <- vector()
   
   while (loop) {
     s <- c(1:k)

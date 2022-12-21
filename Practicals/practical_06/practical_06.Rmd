@@ -1,0 +1,105 @@
+---
+title: "Practical 6"
+author: "Ana Martins"
+date: "2022-12-16"
+output: html_document
+---
+
+## 1 Introduction
+
+```{r}
+library(mclust)
+library(tidyverse)
+library(patchwork)
+```
+
+```{r}
+df <- as_tibble(banknote)
+```
+
+## 2 Data exploration
+
+**1. Read the help file of the banknote data set to understand what it’s all about.**
+
+```{r}
+?banknote
+```
+
+**2. Create a scatter plot of the left (x-axis) and right (y-axis) measurements on the data set. Map the Status column to colour. Jitter the points to avoid overplotting. Are the classes easy to distinguish based on these features?**
+
+```{r}
+df %>% 
+  ggplot(aes(Left, Right, color = Status)) +
+  geom_jitter() +
+  theme_minimal()
+```
+
+Yes, kind of.
+
+**3. From now on, we will assume that we don’t have the labels. Remove the Status column from the data set.**
+
+```{r}
+df <-
+  df %>% 
+  select(-Status)
+```
+
+**4. Create density plots for all columns in the data set. Which single feature is likely to be best for clustering?**
+
+```{r}
+ggplot(df, aes(Length)) + geom_density() + theme_minimal() +
+  ggplot(df, aes(Left)) + geom_density() + theme_minimal() +
+  ggplot(df, aes(Right)) + geom_density() + theme_minimal() +
+  ggplot(df, aes(Bottom)) + geom_density() + theme_minimal() +
+  ggplot(df, aes(Top)) + geom_density() + theme_minimal() +
+  ggplot(df, aes(Diagonal)) + geom_density() + theme_minimal()
+```
+
+Diagonal.
+
+## 3 Univariate model-based clustering
+
+**5. Use Mclust to perform model-based clustering with 2 clusters on the feature you chose. Assume equal variances. Name the model object fit_E_2. What are the means and variances of the clusters?**
+
+```{r}
+data1 <-
+  df %>% 
+  select(Diagonal)
+
+fit_E_2 <- Mclust(data1, G = 2, modelNames = "E")
+summary(fit_E_2, parameters = "TRUE")
+```
+
+**6. Use the formula from the slides and the model’s log-likelihood (fit_E_2$loglik) to compute the BIC for this model. Compare it to the BIC stored in the model object (fit_E_2$bic). Explain how many parameters (m) you used and which parameters these are.**
+
+```{r}
+BIC <- -2 * fit_E_2$loglik + fit_E_2$df * log(nrow(data1))
+BIC
+fit_E_2$bic
+```
+
+**7. Plot the model-implied density using the plot() function. Afterwards, add rug marks of the original data to the plot using the rug() function from the base graphics system.**
+
+```{r}
+fit_E_2_plot <- plot(fit_E_2, "density")
+rug(jitter(df$Diagonal), side = 1)
+```
+
+**8. Use Mclust to perform model-based clustering with 2 clusters on this feature again, but now assume unequal variances. Name the model object fit_V_2. What are the means and variances of the clusters? Plot the density again and note the differences.**
+
+```{r}
+fit_V_2 <- Mclust(data1, G = 2, modelNames = "V")
+summary(fit_V_2, parameters = "TRUE")
+fit_E_2_plot <- plot(fit_V_2, "density")
+rug(jitter(df$Diagonal), side = 1)
+```
+
+Now the two clusters don't have the same size.
+
+**9. How many parameters does this model have? Name them.**
+
+```{r}
+fit_V_2$df
+fit_V_2$parameters
+```
+
