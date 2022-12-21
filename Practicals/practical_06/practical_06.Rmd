@@ -100,6 +100,72 @@ Now the two clusters don't have the same size.
 
 ```{r}
 fit_V_2$df
-fit_V_2$parameters
 ```
 
+The parameters of model-based clustering are the model used to group the data points, the number of clusters and the criteria used to group them.
+
+**10. According to the deviance, which model fits better?**
+
+```{r}
+-2 * fit_E_2$loglik
+-2 * fit_V_2$loglik
+```
+
+The one with unequal variances.
+
+**11. According to the BIC, which model is better?**
+
+```{r}
+fit_E_2$BIC
+fit_V_2$BIC
+```
+
+The one wit unequal variances.
+
+## 3 Lab exercises
+
+### 3.1 Multivariate model-based clustering
+
+**12. Use Mclust with all 6 features to perform clustering. Allow all model types (shapes), and from 1 to 9 potential clusters. What is the optimal model based on the BIC?**
+
+```{r}
+Mclust(df)$BIC
+```
+Model VEE with 3 clusterss.
+
+**13. How many mean parameters does this model have?**
+
+```{r}
+Mclust(df, 3, "VEE")$parameters
+```
+
+18 mean parameters.
+
+**14. Run a 2-component VVV model on this data. Create a matrix of bivariate contour (“density”) plots using the plot() function. Which features provide good component separation? Which do not?**
+
+```{r}
+fit_VVV_2 <- Mclust(df, 2, "VVV")
+plot(fit_VVV_2, "density")
+```
+
+Good separation: Bottom, Diagonal
+Bad separation: Length, Right, Top
+
+**15. Create a scatter plot just like the first scatter plot in this tutorial, but map the estimated class assignments to the colour aesthetic. Map the uncertainty (part of the fitted model list) to the size aesthetic, such that larger points indicate more uncertain class assignments. Jitter the points to avoid overplotting. What do you notice about the uncertainty?**
+
+```{r}
+df <-
+  df %>% 
+  mutate(VVV_2 = fit_VVV_2$classification, VVV_2_uncertainty = as.numeric(fit_VVV_2$uncertainty))
+
+df %>% 
+  ggplot(aes(Left, Right, color = as.factor(VVV_2), size = VVV_2_uncertainty)) +
+  geom_jitter() +
+  theme_minimal()
+```
+
+There are a few values with great uncertainty but most of them are pretty small.
+
+### 3.2 Challenge assignment: High-dimensional Gaussian Mixture modeling
+
+**16. Install and load the package HDclassif. Read the introduction and section 4.2, parts “First results” and “PCA representation” from the associated paper here.**
