@@ -1,0 +1,46 @@
+---
+title: "Correspondance Analysis"
+author: "Ana Martins"
+date: "2022-12-22"
+output: html_document
+---
+
+Source: [http://sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/113-ca-correspondence-analysis-in-r-essentials](http://sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/113-ca-correspondence-analysis-in-r-essentials)
+
+```{r}
+library("FactoMineR")
+library("factoextra")
+```
+
+```{r}
+data("housetasks")
+head(housetasks)
+```
+
+```{r}
+library("gplots")
+
+dt <- as.table(as.matrix(housetasks))
+balloonplot(t(dt), main = "housetasks", xlab = "", ylab = "", label = FALSE, show.margins = FALSE)
+```
+
+```{r}
+chisq <- chisq.test(housetasks)
+chisq
+```
+
+```{r}
+library("FactoMineR")
+res.ca <- CA(housetasks, graph = FALSE)
+```
+
+```{r}
+print(res.ca)
+```
+
+```{r}
+chi2 <- 1944.456
+
+df <- (nrow(housetasks) - 1) * (ncol(housetaks) - 1)
+```
+
