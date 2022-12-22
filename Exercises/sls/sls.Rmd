@@ -36,9 +36,43 @@ crime <-
     college = V6,
     college4 = V7
   ) %>%
-  select(-V1,-V2,-V3,-V4,-V5,-V6,-V7)
+  select(-V1, -V2, -V3, -V4, -V5, -V6, -V7)
 
-boot_function <- function(data, indices){
+predictors <-
+  crime %>%
+  select(-crime_rate) %>%
+  as.matrix()
+
+lasso_mod <- cv.glmnet(predictors, crime$crime_rate, alpha = 1)
+
+boot_function <- function(data, indices) {
+  d <- data[indices,]
+  
+  predictors <-
+  d %>%
+  select(-crime_rate) %>%
+  as.matrix()
+  
+  obj <-
+    glmnet(predictors,
+           d$crime_rate,
+           alpha = 1,
+           lambda = lasso_mod$lambda.min)
+  (coefs <- coef(obj))
+  coefs[, "s0"]
+}
+
+# Calculate standard error using 100
+# bootstrapped samples
+(bootstrap <- boot(crime, boot_function, 100))
+```
+
+It is not possible to get the probability that an estimated coefficient is zero since we are using the non-parametric bootstrap.
+
+**(b)** Repeat part (a), but now re-estimate lambda for each bootstrap replication. Compare the results to those in part (a).
+
+```{r}
+boot_function2 <- function(data, indices){
   d <- data[indices, ]
   
   predictors <-
@@ -51,10 +85,8 @@ boot_function <- function(data, indices){
   (coefs <- coef(obj))
   coefs[, "s0"]
 }
-  
-# Calculate standard error using 100
-# bootstrapped samples
-(bootstrap <- boot(crime, boot_function, 100))
+
+(bootstrap <- boot(crime, boot_function2, 100))
 ```
 
-**(b)** Repeat part (a), but now re-estimate lambda for each bootstrap replication. Compare the results to those in part (a).
+The bias and the standard error are much higher now.
