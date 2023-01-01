@@ -1,0 +1,73 @@
+---
+title: "Comparing Cluster Methods"
+author: "Ana Martins"
+date: "2023-01-01"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(patchwork)
+```
+
+
+**1. Create an assignment folder with your assignment .Rmd file in the root and the following subdirectories: raw_data/, processed_data/.**
+
+**2. Find a clustering dataset with 10-100 columns (attributes) in the UCI machine learning repository. Download the dataset in the raw_data/ subdirectory of your assignment folder. In one or two paragraphs, explain what the data is about.**
+
+```{r}
+cerv_cancer <- read_csv("raw_data/sobar-72.csv")
+```
+
+The chosen dataset is called "Cervical Cancer Behavior Risk Data Set" and it displays certain behaviours that a person has and if that person does or does not have cervical cancer. It was taken from [here](https://archive.ics.uci.edu/ml/datasets/Cervical+Cancer+Behavior+Risk), but the downloaded data seems to not exactly match the description of the website so we will make our own interpretations based on the variable names on the downloaded data.
+
+The dataset has 20 arguments, with their names being pretty self-explanatory, namely `behaviour_sexualRisk`, `behaviour_eating`, `behaviour_personalHygine`, `intention_aggregation`, `intention_commitment`, `attitude_consistency`, `attitude_spontaneity`, `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `motivation_strength`, `motivation_willingness`, `socialSupport_emotionality`, `socialSupport_appreciation`, `socialSupport_instrumental`, `empowerment_knowledge`, `empowerment_abilities`, `empowerment_desires`, `ca_cervix`. This last one being the target variable.
+
+**3. Preprocess the data into a tidy dataset (a data frame or tibble). This can include things like transforming variables (e.g., feet to meters), giving each variable the correct measurement level (character, factor, ordered factor, numeric) and selecting only the columns you need. Save the tidy dataset as an .rds in the processed_data/ subdirectory. In one or two paragraphs, explain which features you chose.**
+
+Since our dataset actually came pretty tidy already, let us determine which variables seem best for splitting thge data into two clusters. We will only be moving forward with variables that have a clear separation between two clusters, not less or more.
+
+```{r}
+ggplot(cerv_cancer, aes(behavior_sexualRisk)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(behavior_eating)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(behavior_personalHygine)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(intention_aggregation)) + geom_density() + theme_minimal()
+  ggplot(cerv_cancer, aes(intention_commitment)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(attitude_consistency)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(attitude_spontaneity)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(norm_significantPerson)) + geom_density() + theme_minimal()
+  ggplot(cerv_cancer, aes(norm_fulfillment)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(perception_vulnerability)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(perception_severity)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(motivation_strength)) + geom_density() + theme_minimal()
+  ggplot(cerv_cancer, aes(motivation_willingness)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(socialSupport_emotionality)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(socialSupport_appreciation)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(socialSupport_instrumental)) + geom_density() + theme_minimal()
+  ggplot(cerv_cancer, aes(empowerment_knowledge)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(empowerment_abilities)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(empowerment_desires)) + geom_density() + theme_minimal()
+```
+
+Taking a look at these graphs, we pick the following variables: `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `socialSupport_emotionality`, `socialSupport_instrumental`, `empowerment_knowledge` and `empowerment_desires`
+
+```{r}
+cerv_cancer_unsupervised <-
+  cerv_cancer %>% 
+  select(-ca_cervix)
+
+clustered <- kmeans(cerv_cancer_unsupervised, 2)$cluster
+```
+
+```{r}
+cerv_cancer <-
+  cerv_cancer %>% 
+  mutate(results = clustered)
+```
+
+```{r}
+cerv_cancer %>%
+  ggplot(aes(x = behavior_eating, y = motivation_strength, color = as.factor(results), size = as.factor(ca_cervix))) +
+  geom_jitter()
+```
+
