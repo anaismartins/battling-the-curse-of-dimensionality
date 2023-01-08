@@ -169,3 +169,11 @@ There are a few values with great uncertainty but most of them are pretty small.
 ### 3.2 Challenge assignment: High-dimensional Gaussian Mixture modeling
 
 **16. Install and load the package HDclassif. Read the introduction and section 4.2, parts “First results” and “PCA representation” from the associated paper here.**
+
+```{r}
+library("HDclassif")
+```
+
+**17. Run high-dimensional data clustering on the Crabs dataset using demo("hddc"). Choose the EM algorithm with random initialization with the AkBkQkDk model. Explain what happens in the plot window.**
+
+For each iteration, the classes get more and more recognised, starting from random.
