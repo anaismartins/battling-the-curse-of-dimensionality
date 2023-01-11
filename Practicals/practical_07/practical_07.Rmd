@@ -1,0 +1,62 @@
+---
+title: 'Practical 7: Time Series'
+author: "Ana Martins"
+date: "2023-01-11"
+output: html_document
+---
+
+## 1 Introduction
+
+```{r}
+library(expsmooth)
+library(fpp3)
+library(fable.prophet)
+```
+
+## 2 Take-home exercises
+
+### Data exploration
+
+**1. Look at the data ukcars, and describe the structure of this data file. What type of object is ukcars?**
+
+```{r}
+ukcars
+typeof(ukcars)
+```
+
+In this data file we have the car production in each quarter of the year from 1977 to 2005. R outputs the data type as double, which is the type of the number of cars produced, which is the non-index value.
+
+*2. Before anything else, we will convert this object to a “time series tibble” or tsibble object called ts_cars. Use the function as_tsibble() for this. Describe what is different about ts_cars relative to ukcars.**
+
+```{r}
+ts_cars <- as_tsibble(ukcars)
+ts_cars
+```
+
+Now we have the car production values all in one column and we have the quarters indexed.
+
+*3. First, create a line plot of the data. You can do this yourself (by mapping aesthetics and specifying geoms) or you can use the function autoplot() for this. Are there any patterns visible in these data?**
+
+```{r}
+autoplot(ts_cars)
+```
+
+There is first a downwards and then an upwards trend. There also seems to be some seasonality but you cannot quite find the rule.
+
+*4. Create a line plot for the period between 1980 and 2000. This can be done by first filtering the data based on year(index) and then passing the result to the autoplot() function.**
+
+```{r}
+ts_cars %>% 
+  filter(index > yearquarter("1980 Q1"), index < yearquarter("2000 Q1")) %>% 
+  autoplot()
+```
+
+
+**5. A second useful way to visualize the data is by plotting the autocorrelation function. You can use the function ACF() to compute the autocorrelation function and then use autoplot() on this object to plot the ACF. Are there specific features to notice about the ACF of these data?**
+
+```{r}
+ACF(ts_cars) %>% 
+  autoplot()
+```
+
+For every data point, the correlation goes over the threshold, meaning there is high correlation in this data.
