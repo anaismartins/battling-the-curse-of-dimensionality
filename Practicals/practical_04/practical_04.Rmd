@@ -22,7 +22,7 @@ library(keras)
 mnist <- dataset_mnist()
 ```
 
-The `mnist` object is divided into training and test data and each of them has variables `x` and `y`. `x` is 60000x28x28/10000x28x28 matrix and `y` is a 60000/10000-dimensional vector.
+The `mnist` object is divided into training and test data and each of them has variables `x` and `y`. `x` is 60000x28x28/10000x28x28 matrix and `y` is a 60000/10000-dimensional vector. `x` has integers between 0 and 255 and `y` has integers between 0 and 9.
 
 **2. Use the plot_img() function below to plot the first training image. The img parameter has to be a matrix with dimensions (28, 28).** NB: indexing in 3-dimensional arrays works the same as indexing in matrices, but you need an extra comma x[,,].
 
@@ -240,9 +240,18 @@ cnn %>%
     validation_split = 0.2,
     verbose = 1
   )
+
+pred_cnn <- class_predict(cnn, x = mnist$test$x)
+(ctab_cnn <- table(pred = pred_cnn, true = mnist$test$y))
 ```
 
 97.32%.
+
+```{r}
+sum(diag(ctab_cnn)) / sum(ctab_cnn)
+```
+
+It has about the same performance as the deep feed forward model (with way fewer parameters).
 
 **13. Create another CNN which has better validation performance within 10 epochs. Compare your validation accuracy to that of your peers.**
 
@@ -272,6 +281,16 @@ alexnet %>%
     verbose = 1
   )
 ```
+
+```{r}
+pred_alexnet <- class_predict(alexnet, x = mnist$test$x)
+(ctab_alexnet <- table(pred = pred_alexnet, true = mnist$test$y))
+```
+
+```{r}
+sum(diag(ctab_alexnet)) / sum(ctab_alexnet)
+```
+
 
 ```{r}
 vgg16 <-
@@ -304,3 +323,13 @@ vgg16 %>%
 ```
 
 97.87%.
+
+```{r}
+pred_vgg16 <- class_predict(vgg16, x = mnist$test$x)
+(ctab_vgg16 <- table(pred = pred_vgg16, true = mnist$test$y))
+```
+
+```{r}
+sum(diag(ctab_vgg16)) / sum(ctab_vgg16)
+```
+
