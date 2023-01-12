@@ -1,0 +1,192 @@
+---
+title: "Comparing Cluster Methods"
+author: "Ana Martins"
+date: "2023-01-01"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(patchwork)
+```
+
+
+**1. Create an assignment folder with your assignment .Rmd file in the root and the following subdirectories: raw_data/, processed_data/.**
+
+**2. Find a clustering dataset with 10-100 columns (attributes) in the UCI machine learning repository. Download the dataset in the raw_data/ subdirectory of your assignment folder. In one or two paragraphs, explain what the data is about.**
+
+```{r}
+cerv_cancer <- read_csv("raw_data/sobar-72.csv")
+```
+
+The chosen dataset is called "Cervical Cancer Behavior Risk Data Set" and it displays certain behaviours that a person has and if that person does or does not have cervical cancer. It was taken from [here](https://archive.ics.uci.edu/ml/datasets/Cervical+Cancer+Behavior+Risk), but the downloaded data seems to not exactly match the description of the website so we will make our own interpretations based on the variable names on the downloaded data.
+
+The dataset has 20 arguments, with their names being pretty self-explanatory, namely `behaviour_sexualRisk`, `behaviour_eating`, `behaviour_personalHygine`, `intention_aggregation`, `intention_commitment`, `attitude_consistency`, `attitude_spontaneity`, `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `motivation_strength`, `motivation_willingness`, `socialSupport_emotionality`, `socialSupport_appreciation`, `socialSupport_instrumental`, `empowerment_knowledge`, `empowerment_abilities`, `empowerment_desires`, `ca_cervix`. This last one being the target variable.
+
+**3. Preprocess the data into a tidy dataset (a data frame or tibble). This can include things like transforming variables (e.g., feet to meters), giving each variable the correct measurement level (character, factor, ordered factor, numeric) and selecting only the columns you need. Save the tidy dataset as an .rds in the processed_data/ subdirectory. In one or two paragraphs, explain which features you chose.**
+
+Our dataset actually came pretty tidy already, the only thing we need to do for it to be perfect is set the target variable to be a factor. 
+
+```{r}
+cerv_cancer <-
+  cerv_cancer %>% 
+  mutate(ca_cervix = as.factor(ca_cervix))
+```
+
+With that done, we move on to a harder task: deciding which columns to use for clustering. From a starting point, all of the 19 variables "are the same", meaning, they are all numerical variables so we cannot decide anything before checking correlation or the variables' distributions.
+
+Let us start by doing some Principal Component Analysis.
+
+```{r}
+# transforming the data into a matrix after taking out the target variable
+cerv_cancer_m <-
+  cerv_cancer %>%
+#  select(-ca_cervix) %>%
+  as.matrix()
+
+# centering the matrix
+cerv_cancer_c <- scale(cerv_cancer_m, scale = FALSE)
+
+# singular value decomposition
+cerv_cancer_svd <- svd(cerv_cancer_c)
+
+# getting the principal component scores
+cerv_cancer_pc <- cerv_cancer_c %*% cerv_cancer_svd$v
+
+# getting the variances for each variable
+N <- dim(cerv_cancer_c)[1]
+
+cerv_cancer_pc1 <- cerv_cancer_pc[, 1]
+cerv_cancer_pc2 <- cerv_cancer_pc[, 2]
+cerv_cancer_pc3 <- cerv_cancer_pc[, 3]
+cerv_cancer_pc4 <- cerv_cancer_pc[, 4]
+cerv_cancer_pc5 <- cerv_cancer_pc[, 5]
+cerv_cancer_pc6 <- cerv_cancer_pc[, 6]
+cerv_cancer_pc7 <- cerv_cancer_pc[, 7]
+cerv_cancer_pc8 <- cerv_cancer_pc[, 8]
+cerv_cancer_pc9 <- cerv_cancer_pc[, 9]
+cerv_cancer_pc10 <- cerv_cancer_pc[, 10]
+cerv_cancer_pc11 <- cerv_cancer_pc[, 11]
+cerv_cancer_pc12 <- cerv_cancer_pc[, 12]
+cerv_cancer_pc13 <- cerv_cancer_pc[, 13]
+cerv_cancer_pc14 <- cerv_cancer_pc[, 14]
+cerv_cancer_pc15 <- cerv_cancer_pc[, 15]
+cerv_cancer_pc16 <- cerv_cancer_pc[, 16]
+cerv_cancer_pc17 <- cerv_cancer_pc[, 17]
+cerv_cancer_pc18 <- cerv_cancer_pc[, 18]
+cerv_cancer_pc19 <- cerv_cancer_pc[, 19]
+cerv_cancer_pc20 <- cerv_cancer_pc[, 20]
+
+cerv_cancer_var1 <- var(cerv_cancer_pc1) * (N - 1) / N
+cerv_cancer_var2 <- var(cerv_cancer_pc2) * (N - 1) / N
+cerv_cancer_var3 <- var(cerv_cancer_pc3) * (N - 1) / N
+cerv_cancer_var4 <- var(cerv_cancer_pc4) * (N - 1) / N
+cerv_cancer_var5 <- var(cerv_cancer_pc5) * (N - 1) / N
+cerv_cancer_var6 <- var(cerv_cancer_pc6) * (N - 1) / N
+cerv_cancer_var7 <- var(cerv_cancer_pc7) * (N - 1) / N
+cerv_cancer_var8 <- var(cerv_cancer_pc8) * (N - 1) / N
+cerv_cancer_var9 <- var(cerv_cancer_pc9) * (N - 1) / N
+cerv_cancer_var10 <- var(cerv_cancer_pc10) * (N - 1) / N
+cerv_cancer_var11 <- var(cerv_cancer_pc11) * (N - 1) / N
+cerv_cancer_var12 <- var(cerv_cancer_pc12) * (N - 1) / N
+cerv_cancer_var13 <- var(cerv_cancer_pc13) * (N - 1) / N
+cerv_cancer_var14 <- var(cerv_cancer_pc14) * (N - 1) / N
+cerv_cancer_var15 <- var(cerv_cancer_pc15) * (N - 1) / N
+cerv_cancer_var16 <- var(cerv_cancer_pc16) * (N - 1) / N
+cerv_cancer_var17 <- var(cerv_cancer_pc17) * (N - 1) / N
+cerv_cancer_var18 <- var(cerv_cancer_pc18) * (N - 1) / N
+cerv_cancer_var19 <- var(cerv_cancer_pc19) * (N - 1) / N
+cerv_cancer_var20 <- var(cerv_cancer_pc20) * (N - 1) / N
+
+cerv_cancer_vart <-
+  cerv_cancer_var1 + cerv_cancer_var2 + cerv_cancer_var3 + cerv_cancer_var4 + cerv_cancer_var5 + cerv_cancer_var6 + cerv_cancer_var7 + cerv_cancer_var8 + cerv_cancer_var9 + cerv_cancer_var10 + cerv_cancer_var11 + cerv_cancer_var12 + cerv_cancer_var13 + cerv_cancer_var14 + cerv_cancer_var15 + cerv_cancer_var16 + cerv_cancer_var17 + cerv_cancer_var18 + cerv_cancer_var19 + cerv_cancer_var20
+
+cerv_cancer_var1 / cerv_cancer_vart * 100
+cerv_cancer_var2 / cerv_cancer_vart * 100
+cerv_cancer_var3 / cerv_cancer_vart * 100
+cerv_cancer_var4 / cerv_cancer_vart * 100
+cerv_cancer_var5 / cerv_cancer_vart * 100
+cerv_cancer_var6 / cerv_cancer_vart * 100
+cerv_cancer_var7 / cerv_cancer_vart * 100
+cerv_cancer_var8 / cerv_cancer_vart * 100
+cerv_cancer_var9 / cerv_cancer_vart * 100
+cerv_cancer_var10 / cerv_cancer_vart * 100
+cerv_cancer_var11 / cerv_cancer_vart * 100
+cerv_cancer_var12 / cerv_cancer_vart * 100
+cerv_cancer_var13 / cerv_cancer_vart * 100
+cerv_cancer_var14 / cerv_cancer_vart * 100
+cerv_cancer_var15 / cerv_cancer_vart * 100
+cerv_cancer_var16 / cerv_cancer_vart * 100
+cerv_cancer_var17 / cerv_cancer_vart * 100
+cerv_cancer_var18 / cerv_cancer_vart * 100
+cerv_cancer_var19 / cerv_cancer_vart * 100
+cerv_cancer_var20 / cerv_cancer_vart * 100
+```
+
+
+let us determine which variables seem best for splitting the data into two clusters. We do this by plotting every variable against every other variabble.
+
+```{r}
+cerv_cancer %>% 
+  ggplot(aes(behavior_sexualRisk, behavior_eating, color = ca_cervix)) +
+  geom_jitter() +
+  theme_minimal()
+```
+
+
+We will only be moving forward with variables that have a clear separation between two clusters, not less or more.
+
+```{r}
+ggplot(cerv_cancer, aes(behavior_sexualRisk)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(behavior_eating)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(behavior_personalHygine)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(intention_aggregation)) + geom_density() + theme_minimal()
+ggplot(cerv_cancer, aes(intention_commitment)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(attitude_consistency)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(attitude_spontaneity)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(norm_significantPerson)) + geom_density() + theme_minimal()
+ggplot(cerv_cancer, aes(norm_fulfillment)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(perception_vulnerability)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(perception_severity)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(motivation_strength)) + geom_density() + theme_minimal()
+ggplot(cerv_cancer, aes(motivation_willingness)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(socialSupport_emotionality)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(socialSupport_appreciation)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(socialSupport_instrumental)) + geom_density() + theme_minimal()
+ggplot(cerv_cancer, aes(empowerment_knowledge)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(empowerment_abilities)) + geom_density() + theme_minimal() +
+  ggplot(cerv_cancer, aes(empowerment_desires)) + geom_density() + theme_minimal()
+```
+
+Taking a look at these graphs, we pick the following variables: `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `socialSupport_emotionality`, `socialSupport_instrumental`, `empowerment_knowledge` and `empowerment_desires`. We also set our target variable to be a factor. All of the other variables are already set to numeric, as they should be.
+
+```{r}
+cerv_cancer <-
+  cerv_cancer %>% 
+  select(norm_significantPerson, norm_fulfillment, perception_vulnerability, perception_severity, socialSupport_emotionality, socialSupport_instrumental, empowerment_knowledge, empowerment_desires, ca_cervix) %>% 
+  mutate(ca_cervix = as.factor(ca_cervix))
+```
+
+To 
+
+```{r}
+cerv_cancer_unsupervised <-
+  cerv_cancer %>% 
+  select(-ca_cervix)
+
+clustered <- kmeans(cerv_cancer_unsupervised, 2)$cluster
+```
+
+
+```{r}
+cerv_cancer <-
+  cerv_cancer %>% 
+  mutate(results = as.factor(clustered))
+```
+
+```{r}
+cerv_cancer %>%
+  ggplot(aes(x = norm_significantPerson, y = norm_fulfillment, color = as.factor(results), size = as.factor(ca_cervix))) +
+  geom_jitter()
+```
+

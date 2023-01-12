@@ -8,6 +8,7 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(patchwork)
+library(mclust)
 ```
 
 
@@ -25,49 +26,185 @@ The dataset has 20 arguments, with their names being pretty self-explanatory, na
 
 **3. Preprocess the data into a tidy dataset (a data frame or tibble). This can include things like transforming variables (e.g., feet to meters), giving each variable the correct measurement level (character, factor, ordered factor, numeric) and selecting only the columns you need. Save the tidy dataset as an .rds in the processed_data/ subdirectory. In one or two paragraphs, explain which features you chose.**
 
-Since our dataset actually came pretty tidy already, let us determine which variables seem best for splitting thge data into two clusters. We will only be moving forward with variables that have a clear separation between two clusters, not less or more.
+Our dataset actually came pretty tidy already, the only thing we need to do for it to be perfect is set the target variable to be a factor. 
+
+```{r}
+cerv_cancer <-
+  cerv_cancer %>% 
+  mutate(ca_cervix = as.factor(ca_cervix))
+```
+
+Let us check if our dataset has class imbalance.
+
+```{r}
+summary(cerv_cancer$ca_cervix)
+```
+
+Yes, we have many more negative results than positive results.
+
+With that done, we move on to a harder task: deciding which columns to use for clustering. From a starting point, all of the 19 variables "are the same", meaning, they are all numerical variables so we cannot decide anything before checking correlation or the variables' distributions.
+
+Let us start by trying to find the single variable that looks best for clustering. According to our analysis of class imbalance, we are looking for data that distributes into two non-equal clusters, with one of them having about 40% of the other's density.
 
 ```{r}
 ggplot(cerv_cancer, aes(behavior_sexualRisk)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(behavior_eating)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(behavior_personalHygine)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(intention_aggregation)) + geom_density() + theme_minimal()
-  ggplot(cerv_cancer, aes(intention_commitment)) + geom_density() + theme_minimal() +
+ggplot(cerv_cancer, aes(intention_commitment)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(attitude_consistency)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(attitude_spontaneity)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(norm_significantPerson)) + geom_density() + theme_minimal()
-  ggplot(cerv_cancer, aes(norm_fulfillment)) + geom_density() + theme_minimal() +
+ggplot(cerv_cancer, aes(norm_fulfillment)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(perception_vulnerability)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(perception_severity)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(motivation_strength)) + geom_density() + theme_minimal()
-  ggplot(cerv_cancer, aes(motivation_willingness)) + geom_density() + theme_minimal() +
+ggplot(cerv_cancer, aes(motivation_willingness)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(socialSupport_emotionality)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(socialSupport_appreciation)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(socialSupport_instrumental)) + geom_density() + theme_minimal()
-  ggplot(cerv_cancer, aes(empowerment_knowledge)) + geom_density() + theme_minimal() +
+ggplot(cerv_cancer, aes(empowerment_knowledge)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(empowerment_abilities)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(empowerment_desires)) + geom_density() + theme_minimal()
 ```
 
-Taking a look at these graphs, we pick the following variables: `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `socialSupport_emotionality`, `socialSupport_instrumental`, `empowerment_knowledge` and `empowerment_desires`
+One of the variables that seems to have the best separation into the 2 clusters we are looking for is `perception_severity`, since the clusters have a good distance between them and the peaks are at 0.15 and 0.10. Other good educated guesses, by the same reasons, are `socialSupport_instrumental`, with peaks at 0.050 and 0.100, and `empowerment_desires`, with peaks at about 0.52 and 0.95. Let us try to do univariate model-based clustering for each of them.
+
+Considering cancer is such a complex thing to predict, we can already propose that this will not be the best solution, since we will try to predict it taking only one factor into account, but it is a good place to start, to know what we are working with.
 
 ```{r}
-cerv_cancer_unsupervised <-
+perception_severity <- 
   cerv_cancer %>% 
-  select(-ca_cervix)
+  select(perception_severity)
+  
+socialSupport_instrumental <-
+  cerv_cancer %>% 
+  select(socialSupport_instrumental)
 
-clustered <- kmeans(cerv_cancer_unsupervised, 2)$cluster
+empowerment_desires <-
+  cerv_cancer %>% 
+  select(empowerment_desires)
 ```
 
 ```{r}
-cerv_cancer <-
+behavior_sexualRisk <-
   cerv_cancer %>% 
-  mutate(results = clustered)
+  select(behavior_sexualRisk)
+
+behavior_eating <-
+  cerv_cancer %>% 
+  select(behavior_eating)
+
+behavior_personalHygine <-
+  cerv_cancer %>% 
+  select(behavior_personalHygine)
+
+intention_aggregation <-
+  cerv_cancer %>% 
+  select(intention_aggregation)
+
+intention_commitment <-
+  cerv_cancer %>% 
+  select(intention_commitment)
+
+attitude_consistency <-
+  cerv_cancer %>% 
+  select(attitude_consistency)
+
+attitude_spontaneity <-
+  cerv_cancer %>% 
+  select(attitude_spontaneity)
+
+norm_significantPerson <-
+  cerv_cancer %>% 
+  select(norm_significantPerson)
+
+norm_fulfillment <-
+  cerv_cancer %>% 
+  select(norm_fulfillment)
+
+perception_vulnerability <-
+  cerv_cancer %>% 
+  select(perception_vulnerability)
+
+motivation_strength <-
+  cerv_cancer %>% 
+  select(motivation_strength)
+
+motivation_willingness <-
+  cerv_cancer %>% 
+  select(motivation_willingness)
+
+socialSupport_emotionality <-
+  cerv_cancer %>% 
+  select(socialSupport_emotionality)
+
+socialSupport_appreciation <-
+  cerv_cancer %>% 
+  select(socialSupport_appreciation)
+
+empowerment_knowledge <-
+  cerv_cancer %>% 
+  select(empowerment_knowledge)
+
+empowerment_abilities <-
+  cerv_cancer %>% 
+  select(empowerment_abilities)
+```
+
+
+```{r}
+perception_severity_fit <- Mclust(perception_severity, G = 2, modelNames = "V")
+summary(perception_severity_fit, parameters = "TRUE")
+
+socialSupport_instrumental_fit <- Mclust(socialSupport_instrumental, G = 2, modelNames = "V")
+summary(socialSupport_instrumental_fit, parameters = "TRUE")
+
+empowerment_desires_fit <- Mclust(empowerment_desires, G = 2, modelNames = "V")
+summary(empowerment_desires_fit, parameters = "TRUE")
 ```
 
 ```{r}
-cerv_cancer %>%
-  ggplot(aes(x = behavior_eating, y = motivation_strength, color = as.factor(results), size = as.factor(ca_cervix))) +
-  geom_jitter()
+#behavior_sexualRisk_fit <- Mclust(behavior_sexualRisk, G = 2, modelNames = "V")
+#summary(behavior_sexualRisk_fit, parameters = "TRUE")
+
+#behavior_eating_fit <- Mclust(behavior_eating, G = 2, modelNames = "V")
+#summary(behavior_eating_fit, parameters = "TRUE")
+
+#behavior_personalHygine_fit <- Mclust(behavior_personalHygine, G = 2, modelNames = "V")
+#summary(behavior_personalHygine_fit, parameters = "TRUE")
+
+#intention_aggregation_fit <- Mclust(intention_aggregation, G = 2, modelNames = "V")
+#summary(intention_aggregation_fit, parameters = "TRUE")
+
+#intention_commitment_fit <- Mclust(intention_commitment, G = 2, modelNames = "V")
+#summary(intention_commitment_fit, parameters = "TRUE")
+
+norm_significantPerson_fit <- Mclust(norm_significantPerson, G = 2, modelNames = "V")
+summary(norm_significantPerson_fit, parameters = "TRUE")
+
+norm_fulfillment_fit <- Mclust(norm_fulfillment, G = 2, modelNames = "V")
+summary(norm_fulfillment_fit, parameters = "TRUE")
+
+perception_vulnerability_fit <- Mclust(perception_vulnerability, G = 2, modelNames = "V")
+summary(perception_vulnerability_fit, parameters = "TRUE")
+
+#motivation_strength_fit <- Mclust(motivation_strength, G = 2, modelNames = "V")
+#summary(motivation_strength_fit, parameters = "TRUE")
+
+motivation_willingness_fit <- Mclust(motivation_willingness, G = 2, modelNames = "V")
+summary(motivation_willingness_fit, parameters = "TRUE")
+
+#socialSupport_emotionality_fit <- Mclust(socialSupport_emotionality, G = 2, modelNames = "V")
+#summary(socialSupport_emotionality_fit, parameters = "TRUE")
+
+socialSupport_appreciation_fit <- Mclust(socialSupport_appreciation, G = 2, modelNames = "V")
+summary(socialSupport_appreciation_fit, parameters = "TRUE")
+
+empowerment_knowledge_fit <- Mclust(empowerment_knowledge, G = 2, modelNames = "V")
+summary(empowerment_knowledge_fit, parameters = "TRUE")
+
+empowerment_abilities_fit <- Mclust(empowerment_abilities, G = 2, modelNames = "V")
+summary(empowerment_abilities_fit, parameters = "TRUE")
 ```
 
