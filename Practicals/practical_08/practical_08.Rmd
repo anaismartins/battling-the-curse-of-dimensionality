@@ -1,0 +1,44 @@
+---
+title: 'Practical 8: Text Mining'
+author: "Ana Martins"
+date: "2023-01-13"
+output: html_document
+---
+
+## 1 Introduction
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(tm)
+library(e1071)
+library(topicmodels)
+library(stringi)
+```
+
+## 2 Vector space model: document-term matrix
+
+**1. Use the code below to load the data set and inspect its first rows.**
+
+```{r}
+load("data/news_dataset.rda")
+head(df_final)
+```
+
+**2. Find out about the name of the categories and the number of observations in each of them.**
+
+```{r}
+df_final <-
+  df_final %>% 
+  mutate(Category = as.factor(Category))
+
+summary(df_final$Category)
+```
+
+**3. Convert the data set into a document-term matrix and use the findFreqTerms function to keep the terms which their frequency is higher than 10. It is also a good idea to apply some text preprocessing before this conversion: e.g., remove non-UTF-8 characters, convert the words into lowercase, remove punctuation, numbers, stopwords, and whitespaces.**
+
+```{r}
+dtm <- DocumentTermMatrix(df_final, control = list(removePunctuation = TRUE, removeNumbers = TRUE, stopwords = TRUE))
+inspect(dtm)
+```
+
