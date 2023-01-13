@@ -11,6 +11,7 @@ output: html_document
 library(expsmooth)
 library(fpp3)
 library(fable.prophet)
+library(patchwork)
 ```
 
 ## 2 Take-home exercises
@@ -31,6 +32,7 @@ In this data file we have the car production in each quarter of the year from 19
 ```{r}
 ts_cars <- as_tsibble(ukcars)
 ts_cars
+typeof(ts_cars)
 ```
 
 Now we have the car production values all in one column and we have the quarters indexed.
@@ -60,3 +62,89 @@ ACF(ts_cars) %>%
 ```
 
 For every data point, the correlation goes over the threshold, meaning there is high correlation in this data.
+
+## 3 Lab exercises
+
+### 3.1 Decomposition
+
+**6. Create an STL decomposition for the whole ts_cars data (trend, season, remainder) using a window size of 15 for the trend. Then, extract the components using the components() function and show the first few rows of the resulting tsibble.**
+
+Hint: look at the example in the help file of the STL function to see how to estimate models using the fable workflow.
+
+```{r}
+plot(stl_cars <- stl(ts_cars, s.window = "periodic", t.window = 15))
+head(ts_stl_cars <- stl_cars$time.series)
+```
+
+**7. Use the autoplot function to plot the individual components.**
+
+```{r}
+ts_stl_cars %>% autoplot()
+```
+
+**8. Use ACF and the autoplot functions to plot the autocorrelation of the remainder. According to the Box-Jenkins methodology, can this model be improved?**
+
+```{r}
+autoplot(acf(ts_stl_cars))
+```
+
+Yes.
+
+### 3.2 ARIMA modeling
+
+**9. Create two ARIMA models for this data using the following syntax. Using the help files, explain the first ARIMA model in your own words. Then briefly explain how the second model came about.**
+
+```{r}
+models <- 
+  ts_cars %>%
+  model(
+    ARIMA = ARIMA(value ~ pdq(1, 1, 1) + PDQ(0, 0, 0)),
+    SARIMA = ARIMA(value)
+  )
+```
+
+ARIMA has the AR and MA processes and it differentiates once, but it does not take into account seasonality. SARIMA is the same but it does take into account seasonality.
+
+**10. Create forecasts for these two models using the forecast() function. Use a horizon of 5 years. Plot these forecasts using the autoplot() function. Explain the main similarities and differences between the two forecasts.**
+
+```{r}
+(models$ARIMA %>%
+  forecast(h = 5 * 4))[[1]] %>% 
+  autoplot(ts_cars)
+
+(models$SARIMA %>%
+  forecast(h = 5 * 4))[[1]] %>% 
+  autoplot(ts_cars)
+```
+
+Both the models have an increasing uncertainty with time. However, the SARIMA model has seasonality, while ARIMA only seems to take the average when looking at it.
+
+### 3.3 Comparing SARIMA and Prophet forecasting methods
+
+**11. Fit a data-driven seasonal ARIMA and a prophet model for the ts_cars datasets between 1980 and 1995. Then, create forecasts until the year 2000, and compare the model forecasts to the observed data for this period. Which model works better in this setting?**
+
+```{r}
+train_ts_cars <-
+  ts_cars %>% 
+  filter(index > yearquarter("1980 Q1"), index < yearquarter("1995 Q4"))
+
+SARIMA_train <-
+  train_ts_cars %>% 
+  model(ARIMA(value))
+
+prophet_train <-
+  train_ts_cars %>% 
+  model(prophet(value))
+
+SARIMA_train %>% 
+  forecast(h = 4*5) %>% 
+  autoplot(train_ts_cars) +
+  autolayer(ts_cars %>% filter(index > yearquarter("1980 Q1"), , index < yearquarter("2000 Q4")))
+
+prophet_train %>% 
+  forecast(h = 4*5) %>% 
+  autoplot(train_ts_cars) +
+  autolayer(ts_cars %>% filter(index > yearquarter("1980 Q1"), , index < yearquarter("2000 Q4")))
+```
+
+The SARIMA model seems to be better, since the values are closer to the true values and for the prophet model the uncertainties do not even reach the true value.
