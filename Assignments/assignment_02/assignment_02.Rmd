@@ -9,12 +9,11 @@ output: html_document
 library(tidyverse)
 library(patchwork)
 library(mclust)
+library(keras)
+
+set.seed(42)
 ```
 
-
-**1. Create an assignment folder with your assignment .Rmd file in the root and the following subdirectories: raw_data/, processed_data/.**
-
-**2. Find a clustering dataset with 10-100 columns (attributes) in the UCI machine learning repository. Download the dataset in the raw_data/ subdirectory of your assignment folder. In one or two paragraphs, explain what the data is about.**
 
 ```{r}
 cerv_cancer <- read_csv("raw_data/sobar-72.csv")
@@ -22,9 +21,7 @@ cerv_cancer <- read_csv("raw_data/sobar-72.csv")
 
 The chosen dataset is called "Cervical Cancer Behavior Risk Data Set" and it displays certain behaviours that a person has and if that person does or does not have cervical cancer. It was taken from [here](https://archive.ics.uci.edu/ml/datasets/Cervical+Cancer+Behavior+Risk), but the downloaded data seems to not exactly match the description of the website so we will make our own interpretations based on the variable names on the downloaded data.
 
-The dataset has 20 arguments, with their names being pretty self-explanatory, namely `behaviour_sexualRisk`, `behaviour_eating`, `behaviour_personalHygine`, `intention_aggregation`, `intention_commitment`, `attitude_consistency`, `attitude_spontaneity`, `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `motivation_strength`, `motivation_willingness`, `socialSupport_emotionality`, `socialSupport_appreciation`, `socialSupport_instrumental`, `empowerment_knowledge`, `empowerment_abilities`, `empowerment_desires`, `ca_cervix`. This last one being the target variable.
-
-**3. Preprocess the data into a tidy dataset (a data frame or tibble). This can include things like transforming variables (e.g., feet to meters), giving each variable the correct measurement level (character, factor, ordered factor, numeric) and selecting only the columns you need. Save the tidy dataset as an .rds in the processed_data/ subdirectory. In one or two paragraphs, explain which features you chose.**
+The dataset has 20 arguments, with their names being pretty self-explanatory, namely `behaviour_sexualRisk`, `behaviour_eating`, `behaviour_personalHygine`, `intention_aggregation`, `intention_commitment`, `attitude_consistency`, `attitude_spontaneity`, `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `motivation_strength`, `motivation_willingness`, `socialSupport_emotionality`, `socialSupport_appreciation`, `socialSupport_instrumental`, `empowerment_knowledge`, `empowerment_abilities`, `empowerment_desires`, `ca_cervix`. This last one is the target variable.
 
 Our dataset actually came pretty tidy already, the only thing we need to do for it to be perfect is set the target variable to be a factor. 
 
@@ -40,7 +37,34 @@ Let us check if our dataset has class imbalance.
 summary(cerv_cancer$ca_cervix)
 ```
 
-Yes, we have many more negative results than positive results.
+Yes, we have many more negative results than positive results, so we are looking for uneven clusters. Furthermore, baseline accuracy is 70,83%.
+
+Because we are lucky enough to have a supervised data set, let us divide it into training, where we will take out the target variable to do unsupervised clustering, and testing, where the target variable will be left so we can check the model's accuracy afterwards.
+
+```{r}
+split <- sample(c(0, 1), nrow(cerv_cancer), replace = TRUE, prob = c(0.80, 0.20))
+
+cerv_cancer <-
+  cerv_cancer %>% 
+  mutate(split = split)
+
+cerv_cancer_train <-
+  cerv_cancer %>% 
+  filter(split == 0) %>% 
+  select(-split)
+
+# we store this for later since we will need it
+ca_cervix_train <- cerv_cancer_train$ca_cervix
+
+cerv_cancer_train <-
+  cerv_cancer_train %>% 
+  select(-ca_cervix)
+
+cerv_cancer_test <-
+  cerv_cancer %>% 
+  filter(split == 1) %>% 
+  select(-split)
+```
 
 With that done, we move on to a harder task: deciding which columns to use for clustering. From a starting point, all of the 19 variables "are the same", meaning, they are all numerical variables so we cannot decide anything before checking correlation or the variables' distributions.
 
@@ -51,260 +75,155 @@ ggplot(cerv_cancer, aes(behavior_sexualRisk)) + geom_density() + theme_minimal()
   ggplot(cerv_cancer, aes(behavior_eating)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(behavior_personalHygine)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(intention_aggregation)) + geom_density() + theme_minimal()
+
 ggplot(cerv_cancer, aes(intention_commitment)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(attitude_consistency)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(attitude_spontaneity)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(norm_significantPerson)) + geom_density() + theme_minimal()
+
 ggplot(cerv_cancer, aes(norm_fulfillment)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(perception_vulnerability)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(perception_severity)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(motivation_strength)) + geom_density() + theme_minimal()
+
 ggplot(cerv_cancer, aes(motivation_willingness)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(socialSupport_emotionality)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(socialSupport_appreciation)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(socialSupport_instrumental)) + geom_density() + theme_minimal()
+
 ggplot(cerv_cancer, aes(empowerment_knowledge)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(empowerment_abilities)) + geom_density() + theme_minimal() +
   ggplot(cerv_cancer, aes(empowerment_desires)) + geom_density() + theme_minimal()
 ```
 
-The variables that seem to have a good separation are: `norm_significantPerson`, `norm_fulfillment`, `perception_vulnerability`, `perception_severity`, `socialSupport_emotionality`, `socialSupport_appreciation`, `socialSupport_instrumental`, `empowerment_knowledge`, `empowerment_desires`. Let us then try model-based clustering for all  of them, and pick the models with the highest BICs. We pick variable or equal variances depending on what performs best for each variable.
+The variables that seem to have a good separation are: `norm_significantPerson`, `norm_fulfillment`, `perception_severity`, `socialSupport_emotionality`, `socialSupport_appreciation`, `socialSupport_instrumental`, `empowerment_knowledge` and `empowerment_desires`. Let us then try model-based clustering for all  of them, and pick the models with the highest BICs. We pick variable or equal variances depending on what performs best for each variable.
 
 Considering cancer is such a complex thing to predict, we can already propose that this will not be the best solution, since we will try to predict it taking only one factor into account, but it is a good place to start, to know what we are working with.
 
 ```{r}
-norm_significantPerson <-
-  cerv_cancer %>% 
-  select(norm_significantPerson)
+model_fitting_V <- function(x) {
+x_fit <- Mclust(x, G = 2, modelNames = "V")
+print(x_fit$BIC)
 
-norm_significantPerson_fit <- Mclust(norm_significantPerson, G = 2, modelNames = "V")
-summary(norm_significantPerson_fit, parameters = "TRUE")
+x_fit$classification
+}
+
+model_fitting_E <- function(x) {
+x_fit <- Mclust(x, G = 2, modelNames = "E")
+print(x_fit$BIC)
+
+x_fit$classification
+}
+```
+
+
+```{r}
+norm_significantPerson_class <- model_fitting_V(cerv_cancer$norm_significantPerson)
 ```
 
 ```{r}
-norm_fulfillment <-
-  cerv_cancer %>% 
-  select(norm_fulfillment)
-
-norm_fulfillment_fit <- Mclust(norm_fulfillment, G = 2, modelNames = "E")
-summary(norm_fulfillment_fit, parameters = "TRUE")
+norm_fulfillment_class <- model_fitting_E(cerv_cancer$norm_fulfillment)
 ```
 
 ```{r}
-perception_vulnerability <-
-  cerv_cancer %>% 
-  select(perception_vulnerability)
-
-perception_vulnerability_fit <- Mclust(perception_vulnerability, G = 2, modelNames = "V")
-summary(perception_vulnerability_fit, parameters = "TRUE")
+perception_severity_class <- model_fitting_E(cerv_cancer$perception_severity)
 ```
 
 ```{r}
-perception_severity <- 
-  cerv_cancer %>% 
-  select(perception_severity)
-
-perception_severity_fit <- Mclust(perception_severity, G = 2, modelNames = "E")
-summary(perception_severity_fit, parameters = "TRUE")
+socialSupport_emotionality_class <- model_fitting_E(cerv_cancer$socialSupport_emotionality)
 ```
 
 ```{r}
-socialSupport_emotionality <-
-  cerv_cancer %>% 
-  select(socialSupport_emotionality)
-
-socialSupport_emotionality_fit <- Mclust(socialSupport_emotionality, G = 2, modelNames = "E")
-summary(socialSupport_emotionality_fit, parameters = "TRUE")
+socialSupport_appreciation_class <- model_fitting_V(cerv_cancer$socialSupport_appreciation)
 ```
 
 ```{r}
-socialSupport_appreciation <-
-  cerv_cancer %>% 
-  select(socialSupport_appreciation)
-
-socialSupport_appreciation_fit <- Mclust(socialSupport_appreciation, G = 2, modelNames = "V")
-summary(socialSupport_appreciation_fit, parameters = "TRUE")
+socialSupport_instrumental_class <- model_fitting_E(cerv_cancer$socialSupport_instrumental)
 ```
 
 ```{r}
-socialSupport_instrumental <-
-  cerv_cancer %>% 
-  select(socialSupport_instrumental)
-
-socialSupport_instrumental_fit <- Mclust(socialSupport_instrumental, G = 2, modelNames = "E")
-summary(socialSupport_instrumental_fit, parameters = "TRUE")
+empowerment_knowledge_class <- model_fitting_E(cerv_cancer$empowerment_knowledge)
 ```
 
 ```{r}
-empowerment_knowledge <-
-  cerv_cancer %>% 
-  select(empowerment_knowledge)
-
-empowerment_knowledge_fit <- Mclust(empowerment_knowledge, G = 2, modelNames = "E")
-summary(empowerment_knowledge_fit, parameters = "TRUE")
+empowerment_desires_class <- model_fitting_V(cerv_cancer$empowerment_desires)
 ```
 
-```{r}
-empowerment_desires <-
-  cerv_cancer %>% 
-  select(empowerment_desires)
+The highest BICs are for the following variables: `norm_significantPerson`, `perception_severity` and `socialSupport_appreciation`. The other ones have BICs that are quite far away from these and all close to each other, so these seem like good choices.
 
-empowerment_desires_fit <- Mclust(empowerment_desires, G = 2, modelNames = "V")
-summary(empowerment_desires_fit, parameters = "TRUE")
-```
-
-The highest BICs are for the following variables: `norm_significantPerson`, `socialSupport_appreciation` and `perception_severity`. The other ones have BICs that are quite far away from these and all close to each other, so these seem like good choices.
-
-Since we are lucky enough to have the results in our dataset, let's compare.
+Since we are lucky enough to have the results in our dataset, let's compare. Let us build confusion matrixes for each model and get the accuracy. Let us also plot the clustering distribution and the real distribution to see if the model followed the right pattern.
 
 ```{r}
 cerv_cancer <-
   cerv_cancer %>%
   mutate(
-    norm_significantPerson_class = as.factor(norm_significantPerson_fit$classification),
-    socialSupport_appreciation_class = as.factor(socialSupport_appreciation_fit$classification),
-    perception_severity_class = as.factor(perception_severity_fit$classification)
+    nsP = as.factor(norm_significantPerson_class),
+    sSa = as.factor(socialSupport_appreciation_class),
+    ps = as.factor(perception_severity_class)
   )
 ```
 
 ```{r}
-cerv_cancer %>%
-  ggplot(aes(x = norm_significantPerson, y = ca_cervix, color = ca_cervix)) +
-  geom_jitter() +
+results_mbc <- function(class, x) { # function to produce the confusion matrix and plots
+  
+  #making the table
+  cf <-
+    table(pred = ifelse(class == 1, 0, 1),
+          cerv_cancer$ca_cervix)
+  
+  if (sum(diag(cf)) < (cf[1, 2] + cf[2, 1])) {
+    cf <-
+      table(pred = ifelse(class == 1, 1, 0),
+            cerv_cancer$ca_cervix)
+    
+    cerv_cancer <-
+      cerv_cancer %>%
+      mutate(class = as.factor(ifelse(class == 1, 2, 1)))
+  }
+  
+  print(cf)
+  
+  accuracy <-
+    sum(diag(cf)) / sum(cf) * 100
+  
+  print(accuracy)
+  
   cerv_cancer %>%
-  ggplot(
-    aes(x = norm_significantPerson, y = norm_significantPerson_class, color = norm_significantPerson_class)
-  ) +
-  geom_jitter()
-
-cf_norm_significantPerson <-
-  table(pred = ifelse(norm_significantPerson_fit$classification == 1, 0, 1),
-        cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_norm_significantPerson)) < (cf_norm_significantPerson[1, 2] + cf_norm_significantPerson[2, 1])) {
-  cf_norm_significantPerson <-
-    table(
-      pred = ifelse(norm_significantPerson_fit$classification == 1, 1, 0),
-      cerv_cancer$ca_cervix
-    )
+    ggplot(aes(x = x, y = ca_cervix, color = ca_cervix)) +
+    geom_jitter() +
+    cerv_cancer %>%
+    ggplot(aes(x = x, y = class, color = class)) +
+    geom_jitter()
+  
 }
+```
 
-cf_norm_significantPerson
 
-(accuracy_norm_significantPerson <-
-    sum(diag(cf_norm_significantPerson)) / sum(cf_norm_significantPerson) * 100)
+```{r}
+results_mbc(cerv_cancer$nsP, cerv_cancer$norm_significantPerson)
 ```
 
 ```{r}
-cerv_cancer %>%
-  ggplot(aes(x = socialSupport_appreciation, y = ca_cervix, color = ca_cervix)) +
-  geom_jitter() +
-  cerv_cancer %>%
-  ggplot(
-    aes(x = socialSupport_appreciation, y = socialSupport_appreciation_class, color = socialSupport_appreciation_class)
-  ) +
-  geom_jitter()
-
-cf_socialSupport_appreciation <-
-  table(pred = ifelse(socialSupport_appreciation_fit$classification == 1, 0, 1),
-        cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_socialSupport_appreciation)) < (cf_socialSupport_appreciation[1, 2] + cf_socialSupport_appreciation[2, 1])) {
-  cf_socialSupport_appreciation <-
-    table(
-      pred = ifelse(socialSupport_appreciation_fit$classification == 1, 1, 0),
-      cerv_cancer$ca_cervix
-    )
-}
-
-cf_socialSupport_appreciation
-
-(accuracy_socialSupport_appreciation <-
-    sum(diag(cf_socialSupport_appreciation)) / sum(cf_socialSupport_appreciation) * 100)
+results_mbc(cerv_cancer$sSa, cerv_cancer$socialSupport_appreciation)
 ```
 
 ```{r}
-cerv_cancer %>%
-  ggplot(aes(x = perception_severity, y = ca_cervix, color = ca_cervix)) +
-  geom_jitter() +
-  cerv_cancer %>%
-  ggplot(
-    aes(x = perception_severity, y = perception_severity_class, color = perception_severity_class)
-  ) +
-  geom_jitter()
-
-cf_perception_severity <-
-  table(pred = ifelse(perception_severity_fit$classification == 1, 0, 1),
-        cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_perception_severity)) < (cf_perception_severity[1, 2] + cf_perception_severity[2, 1])) {
-  cf_perception_severity <-
-    table(
-      pred = ifelse(perception_severity_fit$classification == 1, 1, 0),
-      cerv_cancer$ca_cervix
-    )
-}
-
-cf_perception_severity
-
-(accuracy_perception_severity <-
-    sum(diag(cf_perception_severity)) / sum(cf_perception_severity) * 100)
+results_mbc(cerv_cancer$ps, cerv_cancer$perception_severity)
 ```
 
-That is what happens when you try to predict cancer with only one variable... The clustering models did find a good separation, but they are mostly wrong in their classification. You can even see that in most of them the separation is basically at the middle of their x-scale.
-
+That is what happens when you try to predict cancer with only one variable... The clustering models did find a good separation, but they are mostly wrong in their classification. You can even see that in most of them the separation is basically at the middle of their x-scale. The two first model are even below baseline accuracy. The model using only `perception_severity`, even though it had the larget BIC of the three, has teh best accuracy, just above baseline.
 
 It seems that even with a high BIC, "blind" model-based clustering for such a complex issue will not be able to solve it.
 
-```{r}
-cerv_cancer <-
-  cerv_cancer %>% 
-  select(-norm_significantPerson_class, -socialSupport_appreciation_class, -perception_severity_class)
-```
-
-A first instinct is to try and do some PCA, but PCA is known to not be very good at supervised analysis, so let us try and do some correlation analysis.
+A first instinct is to try and do some PCA, but PCA is known to not be very good at supervised analysis, so let us try and do some correlation analysis between the target variable and the other variables.
 
 ```{r}
 corr <- vector()
 
-corr[1] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$behavior_sexualRisk)
-corr[2] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$behavior_eating)
-corr[3] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$behavior_personalHygine)
-corr[4] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$intention_aggregation)
-corr[5] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$intention_commitment)
-corr[6] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$attitude_consistency)
-corr[7] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$attitude_spontaneity)
-corr[8] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$norm_significantPerson)
-corr[9] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$norm_fulfillment)
-corr[10] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$perception_vulnerability)
-corr[11] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$perception_severity)
-corr[12] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$motivation_strength)
-corr[13] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$motivation_willingness)
-corr[14] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$socialSupport_emotionality)
-corr[15] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$socialSupport_appreciation)
-corr[16] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$socialSupport_instrumental)
-corr[17] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$empowerment_knowledge)
-corr[18] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$empowerment_abilities)
-corr[19] <- cor(as.numeric(cerv_cancer$ca_cervix),
-    cerv_cancer$empowerment_desires)
+for (i in c(1:19)) {
+  corr[i] <- cor(as.numeric(cerv_cancer$ca_cervix),
+                 cerv_cancer[i])
+}
 
 ord_corr <- sort(abs(corr))
 
@@ -314,22 +233,38 @@ ord_corr
 corr
 ```
 
-There seem to be 4 "breaks", where you can tell there is a big difference in correlation. So let us try to do k-means clustering with 5, 10, 14, 16, and all 19 variables.
+There seem to be 4 "breaks", where you can tell there is a big difference in correlation. So let us try to do k-means clustering with 5, 10, 14, 16, and all 19 variables. Let us calculate the accuracy and plot each cluster with the x axis being `perception_severity`, which had the best performance before, so the comparison is fair.
+
+```{r}
+results_kmeans <- function(data) {
+  kmeans <- kmeans(data, 2)$cluster
+  
+  cf <-
+    table(pred = ifelse(kmeans == 1, 0, 1), cerv_cancer$ca_cervix)
+  
+  if (sum(diag(cf)) < (cf[1, 2] + cf[2, 1])) {
+    cf <- table(pred = ifelse(kmeans == 1, 1, 0), cerv_cancer$ca_cervix)
+  }
+  
+  accuracy <- sum(diag(cf)) / sum(cf) * 100
+  print(accuracy)
+  
+  cerv_cancer %>%
+    ggplot(aes(x = perception_severity, y = ca_cervix, color = ca_cervix)) +
+    geom_jitter() +
+    cerv_cancer %>%
+    ggplot(aes(x = perception_severity, y = kmeans, color = as.factor(kmeans))) +
+    geom_jitter()
+}
+```
+
 
 ```{r}
 cerv_cancer_5 <-
   cerv_cancer %>% 
   select(empowerment_abilities, perception_severity, empowerment_knowledge, motivation_strength, empowerment_desires)
 
-cerv_cancer_5_kmeans <- kmeans(cerv_cancer_5, 2)$cluster
-
-cf_5 <- table(pred = ifelse(cerv_cancer_5_kmeans == 1, 0, 1), cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_5)) < (cf_5[1, 2] + cf_5[2, 1])) {
-  cf_5 <- table(pred = ifelse(cerv_cancer_5_kmeans == 1, 1, 0), cerv_cancer$ca_cervix)
-}
-
-(accuracy_5 <- sum(diag(cf_5)) / sum(cf_5) * 100)
+results_kmeans(cerv_cancer_5)
 ```
 
 ```{r}
@@ -337,15 +272,7 @@ cerv_cancer_10 <-
   cerv_cancer %>% 
   select(empowerment_abilities, perception_severity, empowerment_knowledge, motivation_strength, empowerment_desires, motivation_willingness, norm_fulfillment, perception_vulnerability, socialSupport_emotionality, behavior_personalHygine)
 
-cerv_cancer_10_kmeans <- kmeans(cerv_cancer_10, 2)$cluster
-
-cf_10 <- table(pred = ifelse(cerv_cancer_10_kmeans == 1, 0, 1), cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_10)) < (cf_10[1, 2] + cf_10[2, 1])) {
-  cf_10 <- table(pred = ifelse(cerv_cancer_10_kmeans == 1, 1, 0), cerv_cancer$ca_cervix)
-}
-
-(accuracy_10 <- sum(diag(cf_10)) / sum(cf_10) * 100)
+results_kmeans(cerv_cancer_10)
 ```
 
 ```{r}
@@ -353,15 +280,7 @@ cerv_cancer_14 <-
   cerv_cancer %>% 
   select(empowerment_abilities, perception_severity, empowerment_knowledge, motivation_strength, empowerment_desires, motivation_willingness, norm_fulfillment, perception_vulnerability, socialSupport_emotionality, behavior_personalHygine, behavior_sexualRisk, socialSupport_appreciation, intention_aggregation, norm_significantPerson)
 
-cerv_cancer_14_kmeans <- kmeans(cerv_cancer_14, 2)$cluster
-
-cf_14 <- table(pred = ifelse(cerv_cancer_14_kmeans == 1, 0, 1), cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_14)) < (cf_14[1, 2] + cf_14[2, 1])) {
-  cf_14 <- table(pred = ifelse(cerv_cancer_14_kmeans == 1, 1, 0), cerv_cancer$ca_cervix)
-}
-
-(accuracy_14 <- sum(diag(cf_14)) / sum(cf_14) * 100)
+results_kmeans(cerv_cancer_14)
 ```
 
 ```{r}
@@ -369,15 +288,7 @@ cerv_cancer_16 <-
   cerv_cancer %>% 
   select(empowerment_abilities, perception_severity, empowerment_knowledge, motivation_strength, empowerment_desires, motivation_willingness, norm_fulfillment, perception_vulnerability, socialSupport_emotionality, behavior_personalHygine, behavior_sexualRisk, socialSupport_appreciation, intention_aggregation, norm_significantPerson, behavior_eating, intention_commitment)
 
-cerv_cancer_16_kmeans <- kmeans(cerv_cancer_16, 2)$cluster
-
-cf_16 <- table(pred = ifelse(cerv_cancer_16_kmeans == 1, 0, 1), cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_16)) < (cf_16[1, 2] + cf_16[2, 1])) {
-  cf_16 <- table(pred = ifelse(cerv_cancer_16_kmeans == 1, 1, 0), cerv_cancer$ca_cervix)
-}
-
-(accuracy_16 <- sum(diag(cf_16)) / sum(cf_16) * 100)
+results_kmeans(cerv_cancer_16)
 ```
 
 ```{r}
@@ -385,15 +296,29 @@ cerv_cancer_19 <-
   cerv_cancer %>% 
   select(-ca_cervix)
 
-cerv_cancer_19_kmeans <- kmeans(cerv_cancer_19, 2)$cluster
-
-cf_19 <- table(pred = ifelse(cerv_cancer_19_kmeans == 1, 0, 1), cerv_cancer$ca_cervix)
-
-if (sum(diag(cf_19)) < (cf_19[1, 2] + cf_19[2, 1])) {
-  cf_19 <- table(pred = ifelse(cerv_cancer_19_kmeans == 1, 1, 0), cerv_cancer$ca_cervix)
-}
-
-(accuracy_19 <- sum(diag(cf_19)) / sum(cf_19) * 100)
+results_kmeans(cerv_cancer_19)
 ```
 
-We see that they have all about the same accuracy, with the models based on 10, 14 and 16 features having slightly higher accuracy. Since we get almost the same result with only 5 variables, let us take this option and avoid overfitting altogether.
+After running each a few times, we find that the model with 10 variables is pretty unstable, fluctuating between 65 to 80% accuracy. All of the other models also variate somewhat, but not as significantly, except for the model with 5 variables, which always stays the same.
+
+Apart from that, taking the largest accuracy for each. they have all about the same accuracy, with the models based on 10, 14 and 16 features having slightly higher accuracy. Since we get almost the same result with only 5 variables, let us take this option as the best one and avoid overfitting altogether.
+
+We can also see from the plots that it is not simply a split down the middle of the x axis, like in the model-based clustering, even thought `perception_severity` is one of the variables used for fitting.
+
+The K-means models are much better than the model-based clustering models with only one variable.
+
+However, it is still safe to say that clustering is not a good way to predict cancer, since the problem is simply not that linear. I would even go as far as saying that unsupervised learning altogether is not a good method of trying to predict complex problems, like cancer.
+
+With that being said, let us actually try and do better, by comparing it to a supervised, non-linear, model, like a Neural Network. The perceptron is the simples Neural Network you can create, being simply one neuron. Let us see how it compares.
+
+```{r}
+cerv_cancer <- read_csv("raw_data/sobar-72.csv")
+```
+
+
+```{r}
+perceptron <-
+  keras_model_sequential(input_shape = 19) %>%
+  layer_dense(2, activation = "softmax")
+```
+
