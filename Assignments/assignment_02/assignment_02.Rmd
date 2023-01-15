@@ -313,6 +313,11 @@ With that being said, let us actually try and do better, by comparing it to a su
 
 ```{r}
 cerv_cancer <- read_csv("raw_data/sobar-72.csv")
+
+cerv_cancer_y <- cerv_cancer$ca_cervix
+cerv_cancer_x <-
+  cerv_cancer %>% 
+  select(-ca_cervix)
 ```
 
 
@@ -320,5 +325,19 @@ cerv_cancer <- read_csv("raw_data/sobar-72.csv")
 perceptron <-
   keras_model_sequential(input_shape = 19) %>%
   layer_dense(2, activation = "softmax")
+
+perceptron$compile(
+  loss = "sparse_categorical_crossentropy", 
+  optimizer = "adam",
+  metrics = list("accuracy") 
+)
+
+perceptron %>% fit(
+  x = cerv_cancer_x,
+  y = cerv_cancer_y,
+  epochs = 5,
+  validation_split = 0.2,
+  verbose = 1
+)
 ```
 
