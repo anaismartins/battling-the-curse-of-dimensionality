@@ -38,7 +38,10 @@ summary(df_final$Category)
 **3. Convert the data set into a document-term matrix and use the findFreqTerms function to keep the terms which their frequency is higher than 10. It is also a good idea to apply some text preprocessing before this conversion: e.g., remove non-UTF-8 characters, convert the words into lowercase, remove punctuation, numbers, stopwords, and whitespaces.**
 
 ```{r}
-dtm <- DocumentTermMatrix(df_final, control = list(removePunctuation = TRUE, removeNumbers = TRUE, stopwords = TRUE))
-inspect(dtm)
+text <- df_final$Content
+
+corpus <- VCorpus(VectorSource(text))
+
+dtm <- DocumentTermMatrix(corpus, control = list(removePunctuation = TRUE))
 ```
 
