@@ -358,7 +358,18 @@ However, it is still safe to say that clustering is not a good way to predict ca
 
 With that being said, let us actually try and do better, by comparing it to a supervised model, like a boosting algorithm.
 
+<<<<<<< HEAD
 First, let's split the dataset into training and testing.
+=======
+```{r}
+cerv_cancer <- read_csv("raw_data/sobar-72.csv")
+
+cerv_cancer_y <- cerv_cancer$ca_cervix
+cerv_cancer_x <-
+  cerv_cancer %>% 
+  select(-ca_cervix)
+```
+>>>>>>> 084331364e61770c0beff5bb8e9f36ef7d80330b
 
 ```{r, warning=FALSE}
 cerv_cancer <-
