@@ -38,62 +38,229 @@ summary(df_final$Category)
 **3. Convert the data set into a document-term matrix and use the findFreqTerms function to keep the terms which their frequency is higher than 10. It is also a good idea to apply some text preprocessing before this conversion: e.g., remove non-UTF-8 characters, convert the words into lowercase, remove punctuation, numbers, stopwords, and whitespaces.**
 
 ```{r}
-dtm <-
-  DocumentTermMatrix(df_final,
-                     control = list(
-                       removePunctuation = TRUE,
-                       removeNumbers = TRUE,
-                       stopwords = TRUE
-                     ))
+docs <- df_final %$%
+  Content %>%
+  VectorSource() %>%
+  Corpus() %>%
+  tm_map(iconv,
+         from = "UTF-8",
+         to = "UTF-8",
+         sub = "") %>%
+  tm_map(content_transformer(tolower)) %>%
+  tm_map(removeWords, stopwords()) %>%
+  tm_map(stripWhitespace) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers)
 
-dtm <- findFreqTerms(dtm, 10)
+dtm <-
+  DocumentTermMatrix(docs)
+
+freqTerms <- tidy(dtm) %>% 
+  filter(count > 10) %>% 
+  arrange(desc(count))
 ```
 
 **4. Partition the original data into training and test sets with 80% for training and 20% for test.**
 
 ```{r}
-split <- sample(c(0, 1), nrow(df_final), replace = TRUE, prob = c(0.80, 0.20))
+train_idx <- sample(nrow(df_final), floor(0.8*nrow(df_final)))
 
-df_final <-
-  df_final %>% 
-  mutate(split = split)
+train_df <- df_final[train_idx,]
+test_df <- df_final[-train_idx,]
 
-df_final_train <-
-  df_final %>% 
-  filter(split == 0) %>% 
-  select(-split)
-
-df_final_test <-
-  df_final %>% 
-  filter(split == 1) %>% 
-  select(-split)
+train_docs <- docs[train_idx]
+test_docs <- docs[-train_idx]
 ```
 
 **5. Create separate document-term matrices for the training and the test sets using the previous frequent terms as the input dictionary and convert them into data frames.**
 
 ```{r}
-train_dtm <- DocumentTermMatrix(
-  df_final_train,
-  control = list(
-    removePunctuation = TRUE,
-    removeNumbers = TRUE,
-    stopwords = TRUE
-  )
-)
-
-test_dtm <- DocumentTermMatrix(
-  df_final_test,
-  control = list(
-    removePunctuation = TRUE,
-    removeNumbers = TRUE,
-    stopwords = TRUE
-  )
-)
+train_dtm <-
+  DocumentTermMatrix(train_docs, control = list(dictionary = freqTerms$term))  %>%
+  tidy()
+test_dtm <-
+  DocumentTermMatrix(test_docs, control = list(dictionary = freqTerms$term))  %>%
+  tidy()
 ```
 
 **6. OPTIONAL: Use the cbind function to add the categories to the train_dtm data and name the column y.**
 
 ```{r}
-cbind(df_final$Category, train_dtm)
+train_dtm <- cbind(train_dtm, y = train_df$Category)
+```
+
+**7. OPTIONAL: Fit a SVM model with a linear kernel on the training data set. Predict the categories for the training and test data.**
+
+```{r}
+
+```
+
+
+## 3 Topic modeling
+
+**8. Use the LDA function from the topicmodels package to train an LDA model with 5 topics with the Gibbs sampling method.**
+
+```{r}
+lda <- LDA(dtm, 5, method = "Gibbs")
+```
+
+**9. The tidy() method is originally from the broom package (Robinson 2017), for tidying model objects. The tidytext package provides this method for extracting the per-topic-per-word probabilities, called “beta”, from the LDA model. Use this function and check the beta probabilites for each term and topic.**
+
+```{r}
+lda_topics <- tidy(lda)
+```
+
+**10. Use the code below to plot the top 20 terms within each topic.**
+
+```{r}
+lda_top_terms <- lda_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 20) %>% # We use dplyr’s slice_max() to find the top 10 terms within each topic.
+  ungroup() %>%
+  arrange(topic, -beta)
+
+lda_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
+
+**11. Use the code below to save the terms and topics in a wide format.**
+
+```{r}
+beta_wide <- lda_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  pivot_wider(names_from = topic, values_from = beta) %>% 
+  mutate(log_ratio21 = log2(topic2 / topic1)) %>% 
+  mutate(log_ratio31 = log2(topic3 / topic1))%>% 
+  mutate(log_ratio41 = log2(topic4 / topic1))%>% 
+  mutate(log_ratio51 = log2(topic5 / topic1))
+
+beta_wide
+```
+
+**12. Use the log ratios to visualize the words with the greatest differences between topic 1 and other topics. Below you see this analysis for topics 1 and 2.**
+
+```{r}
+# topic 1 versus topic 2
+lda_top_terms1 <- beta_wide %>%
+  slice_max(log_ratio21, n = 10) %>%
+  arrange(term, -log_ratio21)
+
+lda_top_terms2 <- beta_wide %>%
+  slice_max(-log_ratio21, n = 10) %>%
+  arrange(term, -log_ratio21)
+
+lda_top_terms12 <- rbind(lda_top_terms1, lda_top_terms2)
+
+# this is for ggplot to understand in which order to plot name on the x axis.
+lda_top_terms12$term <- factor(lda_top_terms12$term, levels = lda_top_terms12$term[order(lda_top_terms12$log_ratio21)])
+
+# Words with the greatest difference in beta between topic 2 and topic 1
+lda_top_terms12 %>%
+  ggplot(aes(log_ratio21, term, fill = (log_ratio21 > 0))) +
+  geom_col(show.legend = FALSE) +
+  scale_y_reordered() +
+  theme_minimal()
+
+# topic 1 versus topic 3
+lda_top_terms1 <- beta_wide %>%
+  slice_max(log_ratio31, n = 10) %>%
+  arrange(term, -log_ratio31)
+
+lda_top_terms3 <- beta_wide %>%
+  slice_max(-log_ratio31, n = 10) %>%
+  arrange(term, -log_ratio31)
+
+lda_top_terms13 <- rbind(lda_top_terms1, lda_top_terms3)
+
+# this is for ggplot to understand in which order to plot name on the x axis.
+lda_top_terms13$term <- factor(lda_top_terms13$term, levels = lda_top_terms13$term[order(lda_top_terms13$log_ratio31)])
+
+# Words with the greatest difference in beta between topic 2 and topic 1
+lda_top_terms13 %>%
+  ggplot(aes(log_ratio31, term, fill = (log_ratio31 > 0))) +
+  geom_col(show.legend = FALSE) +
+  scale_y_reordered() +
+  theme_minimal()
+
+# topic 1 versus topic 4
+lda_top_terms1 <- beta_wide %>%
+  slice_max(log_ratio41, n = 10) %>%
+  arrange(term, -log_ratio41)
+
+lda_top_terms4 <- beta_wide %>%
+  slice_max(-log_ratio41, n = 10) %>%
+  arrange(term, -log_ratio41)
+
+lda_top_terms14 <- rbind(lda_top_terms1, lda_top_terms4)
+
+# this is for ggplot to understand in which order to plot name on the x axis.
+lda_top_terms14$term <- factor(lda_top_terms14$term, levels = lda_top_terms14$term[order(lda_top_terms14$log_ratio41)])
+
+# Words with the greatest difference in beta between topic 4 and topic 1
+lda_top_terms14 %>%
+  ggplot(aes(log_ratio41, term, fill = (log_ratio41 > 0))) +
+  geom_col(show.legend = FALSE) +
+  scale_y_reordered() +
+  theme_minimal()
+
+# topic 1 versus topic 5
+lda_top_terms1 <- beta_wide %>%
+  slice_max(log_ratio51, n = 10) %>%
+  arrange(term, -log_ratio51)
+
+lda_top_terms5 <- beta_wide %>%
+  slice_max(-log_ratio51, n = 10) %>%
+  arrange(term, -log_ratio51)
+
+lda_top_terms15 <- rbind(lda_top_terms1, lda_top_terms5)
+
+# this is for ggplot to understand in which order to plot name on the x axis.
+lda_top_terms15$term <- factor(lda_top_terms15$term, levels = lda_top_terms15$term[order(lda_top_terms15$log_ratio51)])
+
+# Words with the greatest difference in beta between topic 5 and topic 1
+lda_top_terms15 %>%
+  ggplot(aes(log_ratio51, term, fill = (log_ratio51 > 0))) +
+  geom_col(show.legend = FALSE) +
+  scale_y_reordered() +
+  theme_minimal()
+```
+
+**13. Besides estimating each topic as a mixture of words, LDA also models each document as a mixture of topics. We can examine the per-document-per-topic probabilities, called “gamma”, with the matrix = "gamma" argument in the tidy() function. Call this function for your LDA model and save the probabilities in a varibale named lda_documents.**
+
+```{r}
+lda_documents <- tidy(lda, matrix = "gamma")
+```
+
+**14. Check the topic probabilities for documents with the index number of 1, 1000, 2000, 2225.**
+
+```{r}
+lda_documents %>% 
+  filter(document == "1")
+
+lda_documents %>% 
+  filter(document == "1000")
+
+lda_documents %>% 
+  filter(document == "2000")
+
+lda_documents %>% 
+  filter(document == "2225")
+```
+
+**15. Use the code below to visualise the topic probabilities for the example documents in question 14.**
+
+```{r}
+# reorder titles in order of topic 1, topic 2, etc before plotting
+lda_documents[lda_documents$document %in% c(1, 1000, 2000, 2225),] %>%
+  mutate(document = reorder(document, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ document) +
+  labs(x = "topic", y = expression(gamma)) +
+  theme_minimal()
 ```
 
