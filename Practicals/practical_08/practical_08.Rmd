@@ -86,13 +86,18 @@ test_dtm <-
 **6. OPTIONAL: Use the cbind function to add the categories to the train_dtm data and name the column y.**
 
 ```{r}
-train_dtm <- cbind(train_dtm, y = train_df$Category)
+# Create a data frame with document numbers and categories
+doc_cats <- data.frame(document = 1:length(docs), category = df_final$Category)
+
+# Merge train_dtm with doc_cats using the doc_num column
+train_dtm <- merge(train_dtm, doc_cats, by = "document")
 ```
 
 **7. OPTIONAL: Fit a SVM model with a linear kernel on the training data set. Predict the categories for the training and test data.**
 
 ```{r}
-
+#model <- svm(formula = category ~ ., data = train_dtm, kernel = "linear")
+#predict(model, train_dtm)
 ```
 
 
