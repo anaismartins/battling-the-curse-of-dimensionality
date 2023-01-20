@@ -23,6 +23,7 @@ set.seed(123)
 # creating a 2x2 matrix 
 sigma      <- matrix(c(1, .5, .5, 1), 2, 2)
 # creating a random sample of 2 x 100 values with mean on 5
+# We genetare two variables following a normal distribution with correlation 0.5
 sim_matrix <- mvrnorm(n = 100, mu = c(5, 5), 
                       Sigma = sigma)
 # setting the column names of this matrix
@@ -36,6 +37,7 @@ sim_df <-
                         replace = TRUE))
 
 # setting the x2 and x1 values to a variation depending on the class
+# we move each cluster a little bit away from the center & each other for the sim_df_small dataset
 sim_df_small <- 
   sim_df %>%
   mutate(x2 = case_when(class == "A" ~ x2 + .5,
@@ -89,6 +91,8 @@ sim_df_small_plot + sim_df_large_plot
 
 For the sim_df_large there is much more variation within the classes (you can actually see classes even though they come from random data).
 
+df_s has a lot of class overlap, df_l has very little overlap.
+
 ## 2 Hierarchical clustering
 
 **4. Run a hierarchical clustering on these datasets and display the result as dendrograms. Use euclidian distances and the complete agglomeration method. Make sure the two plots have the same y-scale. What is the difference between the dendrograms? (Hint: functions you’ll need are hclust, ggdendrogram, and ylim)**
@@ -109,6 +113,8 @@ ggdendrogram(sim_df_large_hclust) +
 ```
 
 The one for the less variations has much less distance between "types" of clusters, i.e. the vertical distances are much smaller.
+
+The dataset with large differences segments into 3 classes much higher up. Interestingly, the microstructure (lower splits) is almost exactly the same because within the three clusters there is no difference between the datasets.
 
 **5. For the dataset with small differences, also run a complete agglomeration hierarchical cluster with manhattan distance.**
 
@@ -145,6 +151,8 @@ sim_df_small_clustered_plot + sim_df_small_manhattan_clustered_plot
 ```
 
 The one with the manhattan distance divides the points into 2 different clusters even with points very close to each other.
+
+The manhatten distance clustering prefers more rectangular classes, whereas the euclidean distance clustering prefers circular classes. The difference is most prominent in the very center of the plot and for the top right cluster.
 
 ## 3 K-means clustering
 
@@ -224,6 +232,8 @@ sim_df_large %>%
 
 The differences are mostly on the methods with 2 and 4 clusters.
 
+There is label switching in all plots. There is a different result altogether in the class_4 solution.
+
 **9. Find a way online to perform bootstrap stability assessment for the 3 and 6-cluster solutions.**
 
 ```{r}
@@ -247,6 +257,8 @@ sim_df_large_assessment6$bootbrd
 ```
 
 Clusters with higher bootbrd are more unstable.
+
+The vaerage stability is much lower for 6 means than for 3 means.
 
 ## 4 Challenge question
 
@@ -407,3 +419,4 @@ kmedians <- function(data, k, start_init = FALSE) {
 out <- kmedians(sim_df_large, 3, start_init = TRUE)
 ```
 
+Fewer iterations needed and different assignments.
