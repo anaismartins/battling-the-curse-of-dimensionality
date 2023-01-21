@@ -20,3 +20,86 @@ library(tensorflow)
 library(keras)
 ```
 
+## 2 Word embedding
+
+```{r}
+#devtools::install_github("bradleyboehmke/harrypotter")
+library(harrypotter) # Not to be confused with the CRAN palettes package
+```
+
+**1. Use the code below to load the first seven novels in the Harry Potter series.**
+
+```{r}
+hp_books <- c("philosophers_stone", "chamber_of_secrets",
+              "prisoner_of_azkaban", "goblet_of_fire",
+              "order_of_the_phoenix", "half_blood_prince",
+              "deathly_hallows")
+
+hp_words <- list(
+  philosophers_stone,
+  chamber_of_secrets,
+  prisoner_of_azkaban,
+  goblet_of_fire,
+  order_of_the_phoenix,
+  half_blood_prince,
+  deathly_hallows
+) %>%
+  # name each list element
+  set_names(hp_books) %>%
+  # convert each book to a data frame and merge into a single data frame
+  map_df(as_tibble, .id = "book") %>%
+  # convert book to a factor
+  mutate(book = factor(book, levels = hp_books)) %>%
+  # remove empty chapters
+  filter(!is.na(value)) %>%
+  # create a chapter id column
+  group_by(book) %>%
+  mutate(chapter = row_number(book))
+
+head(hp_words)
+```
+
+**2. Convert the hp_words object into a dataframe and use the unnest_tokens() function from the tidytext package to tokenize the dataframe.**
+
+```{r}
+hp_tokens <- hp_words %>% unnest_tokens(word, value)
+```
+
+**3. Remove the stop words from the tokenized data frame.**
+
+```{r}
+library(tm)
+hp_tokens <-
+  hp_tokens %>%
+  filter((word != ""))
+
+hp_tokens$word <- hp_tokens %$% word %>%
+  removeWords(stopwords("english")) %>%
+  removePunctuation() %>%
+  removeNumbers() %>% 
+  tolower()
+```
+
+**4. Creates a vocabulary of unique terms using the create_vocabulary() function from the text2vec package and remove the words that they appear less than 5 times.**
+
+```{r}
+it <- itoken(hp_tokens$word)
+vocab <- create_vocabulary(it)
+pruned_vocab <- prune_vocabulary(vocab, term_count_min = 5)
+```
+
+**5. The next step is to create a token co-occurrence matrix (TCM). The definition of whether two words occur together is arbitrary. First create a vocab_vectorizer, then use a window of 5 for context words to create the TCM.**
+
+```{r}
+vectorizer <- vocab_vectorizer(pruned_vocab)
+
+#hp_tcm <- create_tcm(it, vectorizer)
+```
+
+**6. Use the GlobalVectors as given in the code below to fit the word vectors on our data set. Choose the embedding size (rank variable) equal to 50, and the maximum number of co-occurrences equal to 10. Train word vectors in 20 iterations. You can check the full input arguments of the fit_transform function from here.**
+
+```{r}
+#glove <- GlobalVectors$new(rank = 50, x_max = 10)
+#hp_wv_main <- glove$fit_transform(hp_tcm, n_iter = 20, convergence_tol = 0.001)
+```
+
