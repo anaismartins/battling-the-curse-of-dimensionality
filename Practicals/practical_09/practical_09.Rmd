@@ -1,0 +1,22 @@
+---
+title: 'Practical 9: Natural Language Processing'
+author: "Ana Martins"
+date: "2023-01-21"
+output: html_document
+---
+
+## 1 Introduction
+
+```{r}
+library(magrittr)  # for pipes
+library(tidyverse) # for tidy data and pipes
+library(ggplot2)   # for visualization
+library(qdap)      # provides parsing tools for preparing transcript data
+library(wordcloud) # to create pretty word clouds
+library(stringr)   # for regular expressions
+library(text2vec)  # for word embedding
+library(tidytext)  # for text mining
+library(tensorflow)
+library(keras)
+```
+
