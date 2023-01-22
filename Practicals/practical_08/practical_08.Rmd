@@ -15,7 +15,7 @@ library(e1071)
 library(topicmodels)
 library(stringi)
 
-set.seed(42)
+set.seed(123)
 ```
 
 ## 2 Vector space model: document-term matrix
@@ -77,10 +77,10 @@ test_docs <- docs[-train_idx]
 **5. Create separate document-term matrices for the training and the test sets using the previous frequent terms as the input dictionary and convert them into data frames.**
 
 ```{r}
-train_tdm <-
+train_dtm <-
   DocumentTermMatrix(train_docs, control = list(dictionary = freqTerms$term)) %>% tidy()
 
-test_tdm <-
+test_dtm <-
   DocumentTermMatrix(test_docs, control = list(dictionary = freqTerms$term)) %>% tidy()
 ```
 
@@ -90,19 +90,21 @@ test_tdm <-
 # Create a data frame with document numbers and categories
 doc_cats <- data.frame(document = 1:length(docs), category = df_final$Category)
 
-# Merge train_dtm with doc_cats using the doc_num column
-train_tdm <- merge(train_tdm, doc_cats, by = "document")
-test_tdm <- merge(test_tdm, doc_cats, by = "document")
+train_dtm <- data.frame(train_dtm, category = as.factor(doc_cats[match(train_dtm$document, doc_cats$document), "category"]))
+train_dtm$category <- as.factor(train_dtm$category)
+
+test_dtm <- data.frame(test_dtm, category = as.factor(doc_cats[match(test_dtm$document, doc_cats$document), "category"]))
+test_dtm$category <- as.factor(test_dtm$category)
 ```
 
 **7. OPTIONAL: Fit a SVM model with a linear kernel on the training data set. Predict the categories for the training and test data.**
 
 ```{r}
-model <- svm(formula = category ~ ., data = train_tdm, type = "C-classification", kernel = "linear")
+model <- svm(formula = category ~ ., data = as.data.frame(train_dtm), type = "C-classification", kernel = "linear")
 
 predict(model)
 
-predict(model, newdata = test_tdm)
+#predict(model, newdata = as.data.frame(test_dtm))
 ```
 
 
