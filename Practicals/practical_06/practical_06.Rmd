@@ -174,8 +174,7 @@ fit_VVV_2 <- Mclust(df, 2, "VVV")
 plot(fit_VVV_2, "density")
 ```
 
-Good separation: Bottom, Diagonal
-Bad separation: Length, Right, Top
+Diagonal-Top and Diagonal-Bottom separate the lasses very well!
 
 **15. Create a scatter plot just like the first scatter plot in this tutorial, but map the estimated class assignments to the colour aesthetic. Map the uncertainty (part of the fitted model list) to the size aesthetic, such that larger points indicate more uncertain class assignments. Jitter the points to avoid overplotting. What do you notice about the uncertainty?**
 
@@ -191,6 +190,8 @@ df %>%
 ```
 
 There are a few values with great uncertainty but most of them are pretty small.
+
+Only 3 points are slightly uncertain, and they are not around the border of the classes in these two dimensions. The other dimensions give enough information about those points near the border!
 
 ### 3.2 Challenge assignment: High-dimensional Gaussian Mixture modeling
 
