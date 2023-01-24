@@ -68,16 +68,14 @@ hp_tokens <- hp_words %>% unnest_tokens(word, value)
 **3. Remove the stop words from the tokenized data frame.**
 
 ```{r}
-library(dplyr)
 hp_tokens <- hp_tokens %>% anti_join(stop_words)
 ```
 
 **4. Creates a vocabulary of unique terms using the create_vocabulary() function from the text2vec package and remove the words that they appear less than 5 times.**
 
 ```{r}
-length(hp_tokens$word)
+hp_tokens$word <- word_tokenizer(tolower(hp_tokens$word))
 it <- itoken(hp_tokens$word)
-length(it)
 
 vocab <- create_vocabulary(it)
 pruned_vocab <- prune_vocabulary(vocab, term_count_min = 5)
@@ -88,13 +86,20 @@ pruned_vocab <- prune_vocabulary(vocab, term_count_min = 5)
 ```{r}
 vectorizer <- vocab_vectorizer(pruned_vocab)
 
-hp_tcm <- create_tcm(it, pruned_vocab, skip_grams_window = 5)
+hp_tcm <- create_tcm(it, vectorizer, skip_grams_window = 5)
+
+hp_tokens_bigrams <- hp_tokens %>%
+  unnest_tokens(bigram, word, token = "ngrams", n = 2)
+
+hp_tcm2 <- hp_tokens_bigrams %>%
+  group_by(book) %>%
+  pairwise_count(bigram, sort = TRUE)
 ```
 
 **6. Use the GlobalVectors as given in the code below to fit the word vectors on our data set. Choose the embedding size (rank variable) equal to 50, and the maximum number of co-occurrences equal to 10. Train word vectors in 20 iterations. You can check the full input arguments of the fit_transform function from [here](https://www.rdocumentation.org/packages/text2vec/versions/0.5.1/topics/GlobalVectors).**
 
 ```{r}
-#glove <- GlobalVectors$new(rank = 50, x_max = 10)
-#hp_wv_main <- glove$fit_transform(hp_tcm, n_iter = 20, convergence_tol = 0.001)
+glove <- GlobalVectors$new(rank = 50, x_max = 10)
+hp_wv_main <- glove$fit_transform(hp_tcm, n_iter = 50, learning_rate = 0.0001)
 ```
 
