@@ -36,6 +36,8 @@ df %>%
 
 Yes, kind of.
 
+The classes are not easy to distinguish: there is considerable overlap.
+
 **3. From now on, we will assume that we don’t have the labels. Remove the Status column from the data set.**
 
 ```{r}
@@ -57,6 +59,19 @@ ggplot(df, aes(Length)) + geom_density() + theme_minimal() +
 
 Diagonal.
 
+```{r}
+# alternative:
+library(ggridges)
+df %>% 
+  mutate_all(scale) %>% 
+  pivot_longer(everything(), names_to = "feature", values_to = "value") %>% 
+  ggplot(aes(x = value, y = feature, fill = feature)) + 
+  geom_density_ridges() +
+  scale_fill_viridis_d(guide = "none") +
+  theme_minimal()
+```
+
+
 ## 3 Univariate model-based clustering
 
 **5. Use Mclust to perform model-based clustering with 2 clusters on the feature you chose. Assume equal variances. Name the model object fit_E_2. What are the means and variances of the clusters?**
@@ -68,15 +83,20 @@ data1 <-
 
 fit_E_2 <- Mclust(data1, G = 2, modelNames = "E")
 summary(fit_E_2, parameters = "TRUE")
+fit_E_2$parameters$mean
+fit_E_2$parameters$variance$sigmasq
 ```
 
 **6. Use the formula from the slides and the model’s log-likelihood (fit_E_2$loglik) to compute the BIC for this model. Compare it to the BIC stored in the model object (fit_E_2$bic). Explain how many parameters (m) you used and which parameters these are.**
 
 ```{r}
-BIC <- -2 * fit_E_2$loglik + fit_E_2$df * log(nrow(data1))
+# The model has 4 parameters: 1 class probability pi, 2 means and 1 variance
+BIC <- -2 * fit_E_2$loglik + fit_E_2$df * 4
 BIC
 fit_E_2$bic
 ```
+
+Note: the BIC from the Mclust package is negative!
 
 **7. Plot the model-implied density using the plot() function. Afterwards, add rug marks of the original data to the plot using the rug() function from the base graphics system.**
 
@@ -96,13 +116,18 @@ rug(jitter(df$Diagonal), side = 1)
 
 Now the two clusters don't have the same size.
 
+The left cluster has larger variance now, because the data is more spread out.
+
 **9. How many parameters does this model have? Name them.**
 
 ```{r}
 fit_V_2$df
 ```
 
-The parameters of model-based clustering are the model used to group the data points, the number of clusters and the criteria used to group them.
+5 parameters:
+1 class probability pi
+2 means
+2 variances
 
 **10. According to the deviance, which model fits better?**
 
@@ -111,7 +136,7 @@ The parameters of model-based clustering are the model used to group the data po
 -2 * fit_V_2$loglik
 ```
 
-The one with unequal variances.
+The one with unequal variances (lower deviance)
 
 **11. According to the BIC, which model is better?**
 
@@ -129,17 +154,18 @@ The one wit unequal variances.
 **12. Use Mclust with all 6 features to perform clustering. Allow all model types (shapes), and from 1 to 9 potential clusters. What is the optimal model based on the BIC?**
 
 ```{r}
-Mclust(df)$BIC
+fit <- Mclust(df)
+summary(fit)
 ```
 Model VEE with 3 clusterss.
 
 **13. How many mean parameters does this model have?**
 
 ```{r}
-Mclust(df, 3, "VEE")$parameters
+Mclust(df, 3, "VEE")$parameters$mean
 ```
 
-18 mean parameters.
+3 clusters * 6 variables * 18 mean parameters
 
 **14. Run a 2-component VVV model on this data. Create a matrix of bivariate contour (“density”) plots using the plot() function. Which features provide good component separation? Which do not?**
 
