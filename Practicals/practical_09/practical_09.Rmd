@@ -92,7 +92,10 @@ hp_tcm <- create_tcm(it, vectorizer, skip_grams_window = 5)
 **6. Use the GlobalVectors as given in the code below to fit the word vectors on our data set. Choose the embedding size (rank variable) equal to 50, and the maximum number of co-occurrences equal to 10. Train word vectors in 20 iterations. You can check the full input arguments of the fit_transform function from [here](https://www.rdocumentation.org/packages/text2vec/versions/0.5.1/topics/GlobalVectors).**
 
 ```{r}
-glove <- GlobalVectors$new(rank = 50, x_max = 10)
-hp_wv_main <- glove$fit_transform(hp_tcm, n_iter = 50, learning_rate = 0.0001)
+glove <-
+  GlobalVectors$new(rank = 50,
+                    vocab = pruned_vocab,
+                    x_max = 10)
+hp_wv_main <- glove$fit_transform(hp_tcm, n_iter = 20)
 ```
 
