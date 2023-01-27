@@ -27,6 +27,8 @@ typeof(ukcars)
 
 In this data file we have the car production in each quarter of the year from 1977 to 2005. R outputs the data type as double, which is the type of the number of cars produced, which is the non-index value.
 
+Rows are years, columns are quarters (seasons). This is a time series object: For these objects the correct time order of the data points (including the different quarters in the columns) is included in the object.
+
 *2. Before anything else, we will convert this object to a “time series tibble” or tsibble object called ts_cars. Use the function as_tsibble() for this. Describe what is different about ts_cars relative to ukcars.**
 
 ```{r}
@@ -37,6 +39,9 @@ typeof(ts_cars)
 
 Now we have the car production values all in one column and we have the quarters indexed.
 
+ts_cars now has only 2 columns, an index and a value. This format is more amenable to multivariate time series, for example. ts_Cars also has identified nicely that this is quarterly data!
+The function `as_tsibble` can be used directly on time series objects such as `ukcars` to create a valid tsibble. For other types of objects you may need to specify more options to create a tsibble (or you can try making it into a time series with ts() first).
+
 *3. First, create a line plot of the data. You can do this yourself (by mapping aesthetics and specifying geoms) or you can use the function autoplot() for this. Are there any patterns visible in these data?**
 
 ```{r}
@@ -44,6 +49,8 @@ autoplot(ts_cars)
 ```
 
 There is first a downwards and then an upwards trend. There also seems to be some seasonality but you cannot quite find the rule.
+
+There are clear trends over time: there is a decrease at the beginning, followed by an increase, then a sudden dip, followed by a partial recovery. At a shorter timescale, there also seems a seasonal pattern (i.e., an annual period). These data are not stationary.
 
 *4. Create a line plot for the period between 1980 and 2000. This can be done by first filtering the data based on year(index) and then passing the result to the autoplot() function.**
 
@@ -63,6 +70,8 @@ ACF(ts_cars) %>%
 
 For every data point, the correlation goes over the threshold, meaning there is high correlation in this data.
 
+The autocorrelations are quite high and stay like that for a long time (i.e., over larger lags as well). This matches the fact that there are long-term trends visible in the data (see sequence plot we made above). Furthermore, there is a peak at lags 4, 8, 12, etc., which is consistent with the idea that these data contain a seasonal effect.
+
 ## 3 Lab exercises
 
 ### 3.1 Decomposition
@@ -76,11 +85,26 @@ plot(stl_cars <- stl(ts_cars, s.window = "periodic", t.window = 15))
 head(ts_stl_cars <- stl_cars$time.series)
 ```
 
+```{r}
+stl_decomp <-
+  ts_cars %>% 
+  model(STL(value ~ trend(window = 15))) %>% 
+  components()
+
+head(stl_decomp)
+```
+
+
 **7. Use the autoplot function to plot the individual components.**
 
 ```{r}
 ts_stl_cars %>% autoplot()
 ```
+
+```{r}
+autoplot(stl_decomp)
+```
+
 
 **8. Use ACF and the autoplot functions to plot the autocorrelation of the remainder. According to the Box-Jenkins methodology, can this model be improved?**
 
@@ -89,6 +113,12 @@ autoplot(acf(ts_stl_cars))
 ```
 
 Yes.
+
+```{r}
+stl_decomp %>% ACF(remainder) %>%  autoplot()
+```
+
+There is quite strong autocorrelation left, even some cyclic behaviour.
 
 ### 3.2 ARIMA modeling
 
@@ -101,9 +131,14 @@ models <-
     ARIMA = ARIMA(value ~ pdq(1, 1, 1) + PDQ(0, 0, 0)),
     SARIMA = ARIMA(value)
   )
+
+models
 ```
 
 ARIMA has the AR and MA processes and it differentiates once, but it does not take into account seasonality. SARIMA is the same but it does take into account seasonality.
+
+The first model is a non-seasonal ARIMA(1, 1, 1) model, meaning a single AR, first difference, and a single MA parameter.
+The second model is a fully data-driven SARIMA model, chosen based on the AICc by the fable package.
 
 **10. Create forecasts for these two models using the forecast() function. Use a horizon of 5 years. Plot these forecasts using the autoplot() function. Explain the main similarities and differences between the two forecasts.**
 
@@ -118,6 +153,8 @@ ARIMA has the AR and MA processes and it differentiates once, but it does not ta
 ```
 
 Both the models have an increasing uncertainty with time. However, the SARIMA model has seasonality, while ARIMA only seems to take the average when looking at it.
+
+Both models don't show a strong trend. The SARIMA model neatly shows the seasonality in the data, and the ARIMA does not. The confidence bands seem approximately equal ly wide and are appropriately increasing in size.
 
 ### 3.3 Comparing SARIMA and Prophet forecasting methods
 
@@ -148,3 +185,5 @@ prophet_train %>%
 ```
 
 The SARIMA model seems to be better, since the values are closer to the true values and for the prophet model the uncertainties do not even reach the true value.
+
+Both models slightly underestimate the `value`. We could argue that the SARIMA model works better in this case because the confidence bands include the real data, whereas this is not the case for the prophet model. The prophet model is a bit "overconfident".
