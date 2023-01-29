@@ -37,6 +37,12 @@ df_final <-
 summary(df_final$Category)
 ```
 
+```{r}
+unique(df_final$Category)
+table(df_final$Category)
+```
+
+
 **3. Convert the data set into a document-term matrix and use the findFreqTerms function to keep the terms which their frequency is higher than 10. It is also a good idea to apply some text preprocessing before this conversion: e.g., remove non-UTF-8 characters, convert the words into lowercase, remove punctuation, numbers, stopwords, and whitespaces.**
 
 ```{r}
@@ -60,6 +66,9 @@ dtm <-
 freqTerms <- tidy(dtm) %>% 
   filter(count > 10) %>% 
   arrange(desc(count))
+
+features <- findFreqTerms(dtm, 10)
+head(features)
 ```
 
 **4. Partition the original data into training and test sets with 80% for training and 20% for test.**
@@ -74,6 +83,19 @@ train_docs <- docs[train_idx]
 test_docs <- docs[-train_idx]
 ```
 
+```{r}
+smp_size <- floor(0.80 * nrow(df_final))
+
+train_idx <- sample(seq_len(nrow(df_final)), size = smp_size)
+
+train_df <- df_final[train_idx,]
+test_df <- df_final[-train_idx,]
+
+train_docs <- docs[train_idx]
+test_docs <- docs[-train_idx]
+```
+
+
 **5. Create separate document-term matrices for the training and the test sets using the previous frequent terms as the input dictionary and convert them into data frames.**
 
 ```{r}
@@ -83,6 +105,15 @@ train_dtm <-
 test_dtm <-
   DocumentTermMatrix(test_docs, control = list(dictionary = freqTerms$term)) %>% tidy()
 ```
+
+```{r}
+dtm_train <- DocumentTermMatrix(train_docs, list(dictionary = features))
+dtm_test <- DocumentTermMatrix(test_docs, list(dictionary = features))
+
+dtm_train <- as.data.frame(as.matrix(dtm_train))
+dtm_test <- as.data.frame(as.matrix(dtm_test))
+```
+
 
 **6. OPTIONAL: Use the cbind function to add the categories to the train_dtm data and name the column y.**
 
@@ -97,6 +128,15 @@ test_dtm <- data.frame(test_dtm, category = as.factor(doc_cats[match(test_dtm$do
 test_dtm$category <- as.factor(test_dtm$category)
 ```
 
+```{r}
+dtm_train <- cbind(cat = factor(train_df$Category), dtm_train)
+dtm_test <- cbind(cat = factor(test_df$Category), dtm_test)
+
+dtm_train <- as.data.frame(dtm_train)
+dtm_test <- as.data.frame(dtm_test)
+```
+
+
 **7. OPTIONAL: Fit a SVM model with a linear kernel on the training data set. Predict the categories for the training and test data.**
 
 ```{r}
@@ -105,6 +145,20 @@ model <- svm(formula = category ~ ., data = as.data.frame(train_dtm), type = "C-
 predict(model)
 
 #predict(model, newdata = as.data.frame(test_dtm))
+```
+
+```{r}
+fit_svm <- svm(cat ~ ., data = dtm_train)
+
+summary(fit_svm)
+
+pred_svm_train <- predict(fit_svm, dtm_train)
+fit_svm_table <- table(dtm_train$cat, pred_svm_train, dnn = c("Actual", "Predicted"))
+fit_svm_table
+
+#pred_svm_test <- predict(fit_svm, dtm_test)
+#fit_svm_test <- table(dtm_test$cat, pred_svm_test, dnn = c("Actual", "Predicted"))
+#fit_svm_test
 ```
 
 
@@ -119,7 +173,7 @@ lda <- LDA(dtm, 5, method = "Gibbs")
 **9. The tidy() method is originally from the broom package (Robinson 2017), for tidying model objects. The tidytext package provides this method for extracting the per-topic-per-word probabilities, called “beta”, from the LDA model. Use this function and check the beta probabilites for each term and topic.**
 
 ```{r}
-lda_topics <- tidy(lda)
+lda_topics <- tidy(lda, matrix = "beta")
 ```
 
 **10. Use the code below to plot the top 20 terms within each topic.**
