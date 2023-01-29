@@ -1,0 +1,26 @@
+---
+title: 'Practical 7: Time Series'
+author: "Ana Martins"
+date: "2023-01-27"
+output: html_document
+---
+
+## 1 Introduction
+
+```{r}
+library(expsmooth)
+library(fpp3)
+library(fable.prophet)
+```
+
+## 2 Take-home exercises
+
+### 2.1 Data exploration
+
+**1. Look at the data ukcars, and describe the structure of this data file. What type of object is ukcars?**
+
+```{r}
+ukcars
+```
+
+`ukcars` is a time series object. For these objects the correct order of the data points is included in the object. It has 4 columns, each corresponding to one quarter of the year, and the rows are the years it spans over, from 1977 to 2005.
